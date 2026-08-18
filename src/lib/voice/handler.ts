@@ -180,7 +180,32 @@ export function tool<A = Record<string, unknown>>(
 
     let body: ToolRequest<A>;
     try {
-      body = (await req.json()) as ToolRequest<A>;
+      /*
+       * Field names are trimmed before anything reads them.
+       *
+       * A tool arrived with the key "session_token " — one trailing space, typed
+       * by hand into a form field in another console. The body was otherwise
+       * perfect and the request was refused as unauthenticated, because
+       * `body.session_token` is undefined when the key has a space in it. From
+       * the caller's side that is indistinguishable from an expired session.
+       *
+       * Whitespace around a field name carries no meaning in any request this
+       * surface accepts, so it is removed rather than honoured. Values are left
+       * exactly as sent — a name or a narration may legitimately have spaces at
+       * its edges, and quietly editing what the caller said is a different and
+       * worse kind of bug.
+       */
+      const raw = (await req.json()) as Record<string, unknown>;
+      const trimmed: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(raw)) trimmed[k.trim()] = v;
+      if (trimmed.args && typeof trimmed.args === "object") {
+        const inner: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(trimmed.args as Record<string, unknown>)) {
+          inner[k.trim()] = v;
+        }
+        trimmed.args = inner;
+      }
+      body = trimmed as ToolRequest<A>;
     } catch {
       done("error", "bad_json");
       return refuse("bad_request");
