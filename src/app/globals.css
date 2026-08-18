@@ -1,0 +1,632 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens — Stripe grammar:
+   · cards separated by ring-shadows, not borders
+   · cool neutrals on white; the tinted page bg stays barely-there
+   · one vivid brand accent (PNB maroon), used in small strong doses
+   · gradient primary buttons with an inset top highlight
+   · 13–14px UI density, big tracked-tight numerals
+--------------------------------------------------------------------------- */
+
+:root {
+  /* surfaces */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --border: #e7e9ef;
+  --border-strong: #d4d8e2;
+
+  /*
+   * ink — blue-leaning grays
+   *
+   * `--ink-3` was #8b92a3, which is 3.12:1 on white — below the 4.5 that 11px
+   * text needs — and it meets 11px text in about 140 places: the evidence line
+   * under nearly every row in the product. The dates, counts and reasons that
+   * justify the numbers above them were the least readable thing on screen.
+   *
+   * Solved rather than guessed, against every background it actually meets:
+   * #676f82 is 5.03 on --surface, 4.53 on --surface-2, 4.69 on --bg. The dark
+   * value clears the same bar on both dark surfaces. Same hue, same role — the
+   * meta line is still quieter than --ink-2, just legible.
+   */
+  --ink: #1f232b;
+  --ink-2: #596171;
+  --ink-3: #676f82;
+  --ink-invert: #ffffff;
+
+  /* brand */
+  --accent: #9b1240;
+  --accent-strong: #7e0e33;
+  --accent-soft: #fbedf2;
+  --gold: #ac8228;
+  --gold-soft: #f8f0dc;
+  /* fixed in both themes: the logo mark and primary-button gradient */
+  --brand-mark: #8e1230;
+  --brand-grad-a: #b01d4f;
+  --brand-grad-b: #8e1230;
+  --ring: rgb(155 18 64 / 0.16);
+
+  /* semantic */
+  --pos: #077d55;
+  --pos-soft: #e7f4ee;
+  --warn: #935207;
+  --warn-soft: #fcf2e0;
+  --neg: #c03434;
+  --neg-soft: #fcecec;
+  --info: #2e6cca;
+  --info-soft: #ecf2fc;
+
+  /*
+   * Categorical chart hues — identity, never state.
+   *
+   * The one place this product colours by category rather than by meaning. The
+   * composition bars under Money in and Money out shipped as an --ink opacity
+   * ramp, on the reasoning that money is never coloured (B3). Beside a
+   * competitor's categorical version the ramp turned out to be unreadable past
+   * three or four segments: the law is about not colouring AMOUNTS, and a
+   * category legend is identity, not money. The amounts stay in ink.
+   *
+   * These are not chosen by eye. They are a validated eight-hue set, checked on
+   * this product's own surfaces for lightness band, chroma floor, colourblind
+   * separation (worst adjacent ΔE 9.1 light / 8.4 dark) and normal-vision
+   * separation (19.6 / 19.3). A hand-picked "brand-adjacent" muted set was tried
+   * first and failed hard — three hues read as grey and two pairs were
+   * indistinguishable to normal vision.
+   *
+   * The guarantee is for ADJACENT pairs, which is what a stacked bar has, so
+   * segments must render in this slot order rather than by size. Slots are
+   * assigned by category, never by rank, so a longer window cannot repaint them.
+   */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #4a3aa7;
+  --chart-8: #e34948;
+
+
+  /* elevation — hairline ring + soft ambient, the Stripe card recipe */
+  --shadow-card: 0 0 0 1px rgb(23 26 33 / 0.055), 0 1px 2px rgb(23 26 33 / 0.05),
+    0 6px 16px rgb(23 26 33 / 0.04);
+  --shadow-pop: 0 0 0 1px rgb(23 26 33 / 0.06), 0 4px 10px rgb(23 26 33 / 0.08),
+    0 18px 44px rgb(23 26 33 / 0.16);
+  --shadow-btn: 0 1px 2px rgb(23 26 33 / 0.22), inset 0 1px 0 rgb(255 255 255 / 0.16);
+  --shadow-ctl: 0 0 0 1px rgb(23 26 33 / 0.09), 0 1px 2px rgb(23 26 33 / 0.06);
+  --shadow-ctl-hover: 0 0 0 1px rgb(23 26 33 / 0.13), 0 2px 4px rgb(23 26 33 / 0.08);
+  --shadow-focus: 0 0 0 1px var(--accent), 0 0 0 4px var(--ring);
+  --shadow-ask: 0 0 0 1px var(--accent), 0 0 22px -4px rgb(155 18 64 / 0.45);
+  --ask-rim: rgb(155 18 64 / 0.30);
+}
+
+[data-theme="dark"] {
+  --bg: #0e0f13;
+  --surface: #16181d;
+  --surface-2: #1d2026;
+  --border: #272a33;
+  --border-strong: #363b47;
+
+  --ink: #edeef2;
+  --ink-2: #9aa0ad;
+  --ink-3: #818797;
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+  --ink-invert: #16181d;
+
+  --accent: #ee6d94;
+  --accent-strong: #f78bab;
+  --accent-soft: #3a1524;
+  --gold: #d2a54b;
+  --gold-soft: #2c2414;
+  --ring: rgb(238 109 148 / 0.24);
+
+  --pos: #4cc38a;
+  --pos-soft: #132a1e;
+  --warn: #e2b33c;
+  --warn-soft: #2c2410;
+  --neg: #f2685c;
+  --neg-soft: #331715;
+  --info: #6fa8f5;
+  --info-soft: #14233b;
+
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.07), 0 1px 2px rgb(0 0 0 / 0.4),
+    0 8px 24px rgb(0 0 0 / 0.32);
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / 0.09), 0 4px 10px rgb(0 0 0 / 0.5),
+    0 18px 44px rgb(0 0 0 / 0.55);
+  --shadow-btn: 0 1px 2px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  --shadow-ctl: 0 0 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-ctl-hover: 0 0 0 1px rgb(255 255 255 / 0.16), 0 2px 4px rgb(0 0 0 / 0.4);
+  --shadow-focus: 0 0 0 1px var(--accent), 0 0 0 4px var(--ring);
+  --shadow-ask: 0 0 0 1px var(--accent), 0 0 26px -4px rgb(238 109 148 / 0.45);
+  --ask-rim: rgb(238 109 148 / 0.34);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e0f13;
+    --surface: #16181d;
+    --surface-2: #1d2026;
+    --border: #272a33;
+    --border-strong: #363b47;
+
+    --ink: #edeef2;
+    --ink-2: #9aa0ad;
+    --ink-3: #818797;
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
+    --chart-5: #d55181;
+    --chart-6: #008300;
+    --chart-7: #9085e9;
+    --chart-8: #e66767;
+    --ink-invert: #16181d;
+
+    --accent: #ee6d94;
+    --accent-strong: #f78bab;
+    --accent-soft: #3a1524;
+    --gold: #d2a54b;
+    --gold-soft: #2c2414;
+    --ring: rgb(238 109 148 / 0.24);
+
+    --pos: #4cc38a;
+    --pos-soft: #132a1e;
+    --warn: #e2b33c;
+    --warn-soft: #2c2410;
+    --neg: #f2685c;
+    --neg-soft: #331715;
+    --info: #6fa8f5;
+    --info-soft: #14233b;
+
+    --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.07), 0 1px 2px rgb(0 0 0 / 0.4),
+      0 8px 24px rgb(0 0 0 / 0.32);
+    --shadow-pop: 0 0 0 1px rgb(255 255 255 / 0.09), 0 4px 10px rgb(0 0 0 / 0.5),
+      0 18px 44px rgb(0 0 0 / 0.55);
+    --shadow-btn: 0 1px 2px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.12);
+    --shadow-ctl: 0 0 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.35);
+    --shadow-ctl-hover: 0 0 0 1px rgb(255 255 255 / 0.16), 0 2px 4px rgb(0 0 0 / 0.4);
+    --shadow-focus: 0 0 0 1px var(--accent), 0 0 0 4px var(--ring);
+    --shadow-ask: 0 0 26px -4px rgb(238 109 148 / 0.45), 0 0 0 1px var(--accent);
+    --ask-rim: rgb(238 109 148 / 0.34);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-invert: var(--ink-invert);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-brand-mark: var(--brand-mark);
+  --color-pos: var(--pos);
+  --color-pos-soft: var(--pos-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-neg: var(--neg);
+  --color-neg-soft: var(--neg-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --radius-card: 12px;
+  --radius-ctl: 8px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-btn: var(--shadow-btn);
+  --shadow-ctl: var(--shadow-ctl);
+  --shadow-ctl-hover: var(--shadow-ctl-hover);
+  --shadow-focus: var(--shadow-focus);
+  --shadow-ask: var(--shadow-ask);
+  --ask-rim: var(--ask-rim);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* money and any aligned figures */
+.tnum {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* -------------------------------------------------- the PNB device
+
+   The bank's own mark, cropped out of the master lockup (`/pnb-logo.png`,
+   724×241) by CSS rather than by re-cutting the asset — so there is one file
+   to replace when a second tenant arrives, and no hand-edited derivative to
+   drift from it.
+
+   The crop box IS the maroon square, measured off the artwork: 120.33px wide
+   at (62, 47.67) in the sprite's own pixels. Nothing outside the square is
+   ever shown, so the white the source is baked onto cannot appear — and the
+   radius clips the corners the square itself rounds off.
+
+   The three ratios below are that box divided by its own width, which is what
+   lets a single `--mark` size drive the whole crop.
+--------------------------------------------------------------------- */
+
+.pnb-mark {
+  --mark: 30px;
+  width: var(--mark);
+  height: var(--mark);
+  flex: none;
+  border-radius: 22%;
+  background-image: url("/pnb-logo.png");
+  background-repeat: no-repeat;
+  background-size: calc(var(--mark) * 6.0166) auto; /* 724 / 120.33 */
+  background-position: calc(var(--mark) * -0.51524) /* 62 / 120.33 */
+    calc(var(--mark) * -0.39612); /* 47.67 / 120.33 */
+}
+
+/* On the brand gradient the maroon square would vanish into the background,
+   so it sits on a white chip — the same move every bank makes when its mark
+   meets its own colour. */
+.pnb-mark--on-dark {
+  background-color: #fff;
+  box-shadow: 0 0 0 3px #fff;
+  border-radius: 20%;
+}
+
+/* -------------------------------------------------- touch (Fitts's law)
+
+   The density on this product is deliberate and was asked for by name, so it
+   stays exactly as it is under a mouse. But `Button size="sm"` is 28px tall,
+   and it is the action on the exposure cards, the accountant strip, the close
+   checklist and every document row — which is to say, the button a thumb
+   presses. Apple asks 44pt, Android 48dp, WCAG 2.5.5 asks 44×44.
+
+   So the rule is conditioned on the POINTER, not the viewport: a phone or a
+   tablet grows every target to 44px, a trackpad changes nothing. Written as a
+   floor rather than a size, so anything already large is untouched.
+
+   `:where()` keeps specificity at zero, so any utility class still wins — and
+   `.tap-exempt` is the escape hatch for a control that genuinely must stay
+   small (there are none today; it exists so the next person has one).
+--------------------------------------------------------------------- */
+
+@media (pointer: coarse) {
+  :where(button, select, summary, [role="button"], [role="tab"]):not(.tap-exempt) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* A width floor would wreck the narrow numeric fields in the journal and
+     document editors, so inputs get height only. */
+  :where(input:not([type="hidden"]), textarea):not(.tap-exempt) {
+    min-height: 44px;
+  }
+
+  /* An anchor is only a target when it is a box — `min-height` does not apply
+     to an inline one, so a link inside a sentence is untouched by design. */
+  :where(a[href]):not(.tap-exempt) {
+    min-height: 44px;
+  }
+}
+
+/* -------------------------------------------------- motion */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(3%, -4%) scale(1.06);
+  }
+  66% {
+    transform: translate(-3%, 3%) scale(0.97);
+  }
+}
+
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade {
+  animation: fade 0.4s ease both;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+.animate-drift {
+  animation: drift 14s ease-in-out infinite;
+}
+
+/* stagger helpers — apply to children of .stagger */
+.stagger > * {
+  animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger > *:nth-child(2) { animation-delay: 0.13s; }
+.stagger > *:nth-child(3) { animation-delay: 0.21s; }
+.stagger > *:nth-child(4) { animation-delay: 0.29s; }
+.stagger > *:nth-child(5) { animation-delay: 0.37s; }
+.stagger > *:nth-child(6) { animation-delay: 0.45s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-fade,
+  .animate-scale-in,
+  .animate-pulse-soft,
+  .animate-drift,
+  .stagger > * {
+    animation: none;
+  }
+}
+
+/* -------------------------------------------------- the Ask control
+ *
+ * The halo TRAVELS. A static ring reads as a border; a light running round the
+ * rim reads as something alive and is the thing that earns a glance.
+ *
+ * It still only appears on hover and focus. This system allows one accent per
+ * surface (B1) and spends it on the amount that matters, so a control lit all
+ * the time would take that from the ₹1,37,632 it is meant to mark — and a
+ * distinct thing that is always on stops being distinct (Von Restorff).
+ *
+ * `@property` is what makes the sweep possible: a bare custom property is a
+ * string to the animation engine and cannot be interpolated, so registering the
+ * angle as an <angle> is the difference between a rotating gradient and one that
+ * jumps at the halfway mark.
+ */
+@property --ask-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes ask-sweep {
+  to {
+    --ask-angle: 360deg;
+  }
+}
+
+.ask-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+/*
+ * Two rims: a crisp one and a blurred copy behind it for the bloom. Both sit
+ * 2px outside the box, and the OPAQUE child painted over them leaves only that
+ * 2px showing — which is why this lives on a wrapper rather than on the bar
+ * itself, whose `overflow: hidden` (needed for the morph) would clip it away.
+ *
+ * The rim is CONTINUOUS. The first version ran transparent → accent →
+ * transparent, and on a 620×48 pill that reads as a broken border: a conic
+ * gradient measures angle from the centre, so the two rounded caps swallow most
+ * of the angular range while the long top and bottom edges occupy a few degrees
+ * each. The transparent arcs landed on those long edges and left them visibly
+ * unlit — the empty spaces.
+ *
+ * So there are no transparent stops at all now. A dim accent holds the whole
+ * rim, and FOUR hotspots travel over it at 25% intervals. Nothing ever goes
+ * dark; the light moves across something that is already there.
+ *
+ * Four rather than two because of that same angular distortion. Two hotspots
+ * sit opposite each other, which on a wide pill puts BOTH of them on the long
+ * edges at once and then both near the caps at once — the lighting pulses
+ * unevenly around the shape. Four means roughly three are always somewhere on
+ * the long edges while one crosses a cap, so the rim stays evenly lit as it
+ * turns. It also means any given point brightens every 0.9s rather than every
+ * 1.8s, which reads as a shimmer rather than a beacon.
+ */
+.ask-glow::before,
+.ask-glow::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  background: conic-gradient(
+    from var(--ask-angle),
+    var(--ask-rim) 0%,
+    var(--accent) 6%,
+    var(--ask-rim) 19%,
+    var(--accent) 31%,
+    var(--ask-rim) 44%,
+    var(--accent) 56%,
+    var(--ask-rim) 69%,
+    var(--accent) 81%,
+    var(--ask-rim) 94%,
+    var(--ask-rim) 100%
+  );
+}
+
+.ask-glow::after {
+  filter: blur(8px);
+}
+
+.ask-glow:hover::before,
+.ask-glow:focus-within::before {
+  opacity: 1;
+  animation: ask-sweep 3.6s linear infinite;
+}
+
+.ask-glow:hover::after,
+.ask-glow:focus-within::after {
+  opacity: 0.6;
+  animation: ask-sweep 3.6s linear infinite;
+}
+
+/*
+ * The field carries no ring of its own. The global :focus-visible rule draws a
+ * 2px accent outline at a 4px radius, which inside a pill reads as a red
+ * rectangle floating in the middle of it. Focus is shown by the rim above —
+ * a stronger indicator than the one being suppressed, not a missing one.
+ */
+.ask-glow input:focus-visible,
+.ask-glow input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/** The simple bloom, for the mobile tab mark — it has its own fill to protect. */
+.ask-halo {
+  transition: box-shadow 200ms ease;
+}
+.ask-halo:hover,
+.ask-halo:focus-visible {
+  box-shadow: var(--shadow-ask);
+}
+
+/*
+ * Opening is a DRAG, in two phases that hand off to each other.
+ *
+ *   1 — the mark travels left from the corner, still just a circle, until its
+ *       right edge lands on the spot where the finished bar's right edge goes.
+ *       That is the stop.
+ *   2 — the right edge stays pinned there and the mark keeps going, stretching
+ *       the bar out behind it. It ends as the bar's left cap.
+ *
+ * The handoff is done with transition DELAYS rather than keyframes, so closing
+ * is the same declaration with the delays swapped — the bar collapses back to
+ * the stop first, then the mark carries on to the corner. Keyframes would have
+ * needed a second animation and a way to hold the end state.
+ *
+ * The two phases overlap by 30ms on purpose. Butt-jointed, the stop reads as a
+ * stall; overlapped, the stretch has already begun as the travel finishes.
+ */
+:root {
+  /*
+   * No delays. The two phases run on ONE timeline and the curves do the phasing.
+   *
+   * Delays were the whole problem. However carefully they were overlapped, the
+   * leading phase's ease-out spent ~90% of its distance in the first 40% of its
+   * time and then coasted, while the following phase had not yet built speed —
+   * so the mark stalled to 13px/frame and then surged to 96. That reads as the
+   * hit: not the pin itself, the gap on either side of it.
+   *
+   * Both properties now start together and land together. `lead` does its work
+   * early and settles; `follow` sits near zero for the first third and then
+   * takes over. Their velocities cross in the middle instead of handing off at
+   * an instant, so there is no seam to feel.
+   */
+  --ease-lead: cubic-bezier(0.2, 0.9, 0.35, 1);
+  --ease-follow: cubic-bezier(0.7, 0, 0.3, 1);
+}
+
+/* Closed by default, so these are the CLOSING timings: the collapse leads. */
+.ask-travel {
+  transition:
+    translate 460ms var(--ease-follow),
+    transform 460ms var(--ease-follow);
+}
+
+.ask-morph {
+  transition: width 460ms var(--ease-lead);
+}
+
+/*
+ * Opening swaps which property leads. The right edge travels early and settles
+ * onto the stop; the stretch waits, then pulls the bar out under the mark.
+ */
+.ask-open .ask-travel {
+  transition:
+    translate 460ms var(--ease-lead),
+    transform 460ms var(--ease-lead);
+}
+.ask-open .ask-morph {
+  transition: width 460ms var(--ease-follow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-halo,
+  .ask-morph,
+  .ask-travel {
+    transition: none;
+  }
+  /* The rim still marks focus; it simply stops running. */
+  .ask-glow:hover::before,
+  .ask-glow:focus-within::before,
+  .ask-glow:hover::after,
+  .ask-glow:focus-within::after {
+    animation: none;
+  }
+}

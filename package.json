@@ -1,0 +1,36 @@
+{
+  "name": "union-business-connect",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "probe:books": "npx --yes tsx scripts/books-probe.ts",
+    "probe:csv": "npx --yes tsx scripts/csv-probe.ts",
+    "probe:copy": "npx --yes tsx scripts/copy-probe.ts",
+    "probe:contrast": "npx --yes tsx scripts/contrast-probe.ts",
+    "probe:agree": "npx --yes tsx scripts/agree-probe.ts",
+    "probe:voice": "npx --yes tsx scripts/voice-probe.mts",
+    "probe": "npm run probe:books && npm run probe:csv && npm run probe:copy && npm run probe:contrast && npm run probe:agree && npm run probe:voice",
+    "check": "tsc --noEmit && npm run lint && npm run probe"
+  },
+  "dependencies": {
+    "lucide-react": "^1.27.0",
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
