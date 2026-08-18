@@ -36,13 +36,70 @@ import type { SessionClaims, ToolName, ToolRequest } from "./types";
  * `!= null` check still means "the caller actually said a number". An
  * unresolved "{{qty}}" is treated as absent, which is what it is.
  */
+const WORDS: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
+  forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+
+/** Indian scale words, plus the ones a transcriber tends to produce. */
+const SCALES: Record<string, number> = {
+  hundred: 100, thousand: 1_000, k: 1_000,
+  lakh: 100_000, lakhs: 100_000, lac: 100_000, lacs: 100_000,
+  crore: 10_000_000, crores: 10_000_000, cr: 10_000_000,
+  million: 1_000_000, mn: 1_000_000,
+};
+
 export function asNumber(v: unknown): number | undefined {
   if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
   if (typeof v !== "string") return undefined;
   const t = v.trim();
   if (!t || /^\{\{.*\}\}$/.test(t)) return undefined;
-  const n = Number(t.replace(/,/g, ""));
-  return Number.isFinite(n) ? n : undefined;
+
+  const plain = Number(t.replace(/[,\s₹]/g, ""));
+  if (Number.isFinite(plain)) return plain;
+
+  /*
+   * Spoken amounts, because this arrives from a phone call.
+   *
+   * The caller says "five lakh" and the transcriber writes "five lakh" — the
+   * model is asked for a number and passes the words through, which reached the
+   * slot filler as NaN, left `amount` unfilled, and made the draft incomplete.
+   * An incomplete draft is never stored, so the tool returned ok, the agent
+   * announced an invoice, and nothing existed. Every layer behaved correctly and
+   * the caller was told a lie.
+   *
+   * Parsed here rather than solved with a field description, because the
+   * description is a request and this is a guarantee. "5 lakh", "five lakh",
+   * "1.5 crore", "fifty thousand" and "500000" all mean one thing to the person
+   * who said them, and should mean one thing here.
+   */
+  let total = 0;
+  let current = 0;
+  let saw = false;
+  for (const raw of t.toLowerCase().replace(/[,₹]/g, " ").split(/\s+/)) {
+    const w = raw.replace(/[^a-z0-9.]/g, "");
+    if (!w) continue;
+    const asNum = Number(w);
+    if (Number.isFinite(asNum)) { current += asNum; saw = true; continue; }
+    if (w in WORDS) { current += WORDS[w]; saw = true; continue; }
+    if (w in SCALES) {
+      // "lakh" with nothing before it means one lakh, as anyone would read it.
+      current = (current || 1) * SCALES[w];
+      total += current;
+      current = 0;
+      saw = true;
+      continue;
+    }
+    // Units and filler the caller says around the number. "two days" is a
+    // due period of 2; "five lakh rupees" is an amount. Dropping the noun keeps
+    // the number, which is the only part the slot wants.
+    if (["and", "rupees", "rupee", "rs", "inr", "in", "day", "days", "kg", "kgs", "units", "unit", "pieces", "piece", "nos"].includes(w)) continue;
+    return undefined; // an unknown word means we are guessing; do not.
+  }
+  const n = total + current;
+  return saw && Number.isFinite(n) ? n : undefined;
 }
 
 /*

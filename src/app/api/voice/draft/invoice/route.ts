@@ -83,6 +83,24 @@ export const POST = tool<Args>("draft_invoice", ({ claims, args, callId }) => {
   // Still gaps: ask for exactly one of them. Nothing is stored yet, so a caller
   // who abandons the call leaves no half-invoice behind.
   if (!state.complete) {
+    /*
+     * Nothing is stored yet, and that is deliberate — but it is indistinguishable
+     * from a successful draft in the tool log, which reports ok for both. A call
+     * where the agent announced an invoice and the Today screen stayed empty
+     * traced to exactly this: one slot arrived as words the parser rejected, the
+     * draft stayed incomplete, and every layer was behaving correctly.
+     */
+    console.warn(
+      JSON.stringify({
+        evt: "voice_draft_incomplete",
+        at: new Date().toISOString(),
+        entityId: claims.entityId,
+        missing: state.missing.map((s) => s.key),
+        collected: values.map((v) => v.key),
+        args_received: Object.keys(args as object).sort(),
+        detail: "no draft stored — the agent will ask for the missing slot",
+      }),
+    );
     return ok(state.nextPrompt, {
       missing: state.missing.map((s) => s.key),
       collected: values.map((v) => v.key),
