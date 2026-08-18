@@ -79,12 +79,12 @@ export function currentPin(
  * PIN, and Sarvam's "Protect sensitive info" setting should be on as well.
  */
 export function verifyPin(
-  presented: string,
+  presented: string | number,
   entityId: string,
   user: string,
   now = Date.now(),
 ): boolean {
-  const clean = presented.replace(/\D/g, "");
+  const clean = String(presented).replace(/\D/g, "");
   if (clean.length !== 6) return false;
 
   /*

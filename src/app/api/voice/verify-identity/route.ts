@@ -13,6 +13,7 @@
 import { ok, refuse, tool } from "@/lib/voice/handler";
 import { verifyOtp } from "@/lib/voice/otp";
 import { isLocked, recordAttempt, verifyPin } from "@/lib/voice/pin";
+import { allowedTools } from "@/lib/voice/policy";
 import { upgradeSession } from "@/lib/voice/session";
 
 export const runtime = "nodejs";
@@ -22,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 interface Args {
   /** The rolling code the app displays. Preferred — no SIM-swap exposure. */
-  pin?: string;
+  pin?: string | number;
   /** The texted code, for callers who can't reach the app. */
   otp?: string;
   /** Opaque token from request_otp. Carries the hash; the agent just holds it. */
@@ -50,7 +51,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
       user: claims.user,
       auth_level: claims.authLevel,
       locked: isLocked(callId),
-      pin_digits: (args.pin ?? "").replace(/\D/g, "").length,
+      pin_digits: String(args.pin ?? "").replace(/\D/g, "").length,
       has_otp: Boolean(args.otp),
       args_received: Object.keys(args as object).sort(),
       branch:
@@ -66,8 +67,21 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
     }),
   );
 
+  /*
+   * The allow-list changes at this moment and at no other.
+   *
+   * `session_start` returns the cli_only list and the Instructions gate every
+   * offer on it. Without re-sending it here the agent holds that list for the
+   * rest of the call: verified, permitted by policy to reach every read and
+   * draft, and still telling the caller that drafting an invoice is "outside
+   * what your role can do on this call". The refusal is the prompt's, not the
+   * policy's, which is why it came and went depending on whether the model
+   * consulted the variable or simply called the tool.
+   */
+  const toolsWhenVerified = allowedTools({ role: claims.role, authLevel: "verified" });
+
   if (claims.authLevel === "verified") {
-    return ok("You're already verified — go ahead.", { auth_level: "verified" });
+    return ok("You're already verified — go ahead.", { auth_level: "verified", tools_allowed: toolsWhenVerified });
   }
 
   // Checked before any comparison so a locked call cannot be used to keep
@@ -115,7 +129,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
     const token = upgradeSession(claims);
     return ok(
       "Thank you, you're verified. What can I help with?",
-      { auth_level: "verified", factor: "otp" },
+      { auth_level: "verified", factor: "otp", tools_allowed: toolsWhenVerified },
       token,
     );
   }
@@ -146,14 +160,14 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
         at: new Date().toISOString(),
         entityId: claims.entityId,
         user: claims.user,
-        digits_received: (args.pin ?? "").replace(/\D/g, "").length,
+        digits_received: String(args.pin ?? "").replace(/\D/g, "").length,
         detail: "VOICE_DEMO_PIN=any — verified without checking the code",
       }),
     );
     const token = upgradeSession(claims);
     return ok(
       "Thank you, you're verified. What can I help with?",
-      { auth_level: "verified", factor: "pin" },
+      { auth_level: "verified", factor: "pin", tools_allowed: toolsWhenVerified },
       token,
     );
   }
@@ -212,7 +226,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
      * interpolated and a caller reading the wrong screen sound identical on the
      * phone and need opposite fixes. digits_received: 0 says which in one line.
      */
-    const digits = args.pin.replace(/\D/g, "").length;
+    const digits = String(args.pin).replace(/\D/g, "").length;
     console.warn(
       JSON.stringify({
         evt: "voice_pin_mismatch",
@@ -220,7 +234,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
         entityId: claims.entityId,
         user: claims.user,
         digits_received: digits,
-        looked_like_template: /\{\{|\}\}/.test(args.pin),
+        looked_like_template: /\{\{|\}\}/.test(String(args.pin)),
         detail:
           digits === 6
             ? `six digits arrived and did not match — the code must come from /api/voice/pin?entity=${claims.entityId}&user=${claims.user}`
@@ -249,7 +263,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
   const token = upgradeSession(claims);
   return ok(
     "Thank you, you're verified. What can I help with?",
-    { auth_level: "verified", factor: "pin" },
+    { auth_level: "verified", factor: "pin", tools_allowed: toolsWhenVerified },
     token,
   );
 });
