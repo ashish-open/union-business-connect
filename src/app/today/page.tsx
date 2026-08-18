@@ -23,7 +23,6 @@ import { Card } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
 import { Tone } from "@/lib/analysis";
 import { payable } from "@/lib/balance";
-import { VoiceCodeCard } from "@/components/today/VoiceCodeCard";
 import { VoiceDraftPanel } from "@/components/today/VoiceDraftPanel";
 import { draftToQueueItem, useVoiceDrafts } from "@/lib/voice/queue";
 import { executedLine, toInvoice, toPayee } from "@/lib/voice/execute";
@@ -173,14 +172,16 @@ export default function TodayPage() {
         ))}
       </div>
 
-      {/* While a call runs, the code the caller has to read out is the most
-          urgent thing on this page — so it sits above everything, and vanishes
-          the moment the call ends. */}
-      <VoiceCodeCard
-        entityId={entity.id}
-        user={(customer?.firstName ?? "").toLowerCase()}
-        visible={voice.live}
-      />
+      {/* The verification code used to sit here, above everything, on the
+          reasoning that a caller mid-call needs it more than anything else on
+          the page. That was right about the moment and wrong about the other
+          twenty-three hours: the card is the first thing on Today whether or not
+          a call is happening, and it asks to be read aloud, which is the one
+          habit this product should not be teaching.
+
+          It belongs next to the agent — surfaced when someone reaches for
+          Simran, not standing on the home screen waiting. VoiceCodeCard is kept
+          intact for that; only this call site is gone. */}
 
       {/* project mode — derived from the designated account, never asked */}
       {rera && (
@@ -216,11 +217,6 @@ export default function TodayPage() {
                 rails={unconnected}
                 onDismiss={() => resolveItem(entity.id, PROMPT_KEY)}
               />
-            </div>
-          )}
-          {exposed.length > 0 && (
-            <div className="mb-4">
-              <ExposureList exposed={exposed} onOpen={(x) => router.push(x.href)} />
             </div>
           )}
           <h2 className="text-[13px] font-semibold text-ink">
@@ -304,6 +300,18 @@ export default function TodayPage() {
               >
                 See the full statement →
               </button>
+            </div>
+          )}
+          {/* Below the queue, not above it.
+              Both are work, but they answer different questions: the queue is
+              what today is for, and the close list is what this month still
+              owes. Sitting first, the close list pushed four decisions with
+              names and amounts under the fold behind one line about TDS — a
+              deadline outranking the work is only true in the last week of the
+              month, and this page is opened on all the other days too. */}
+          {exposed.length > 0 && (
+            <div className="mt-5">
+              <ExposureList exposed={exposed} onOpen={(x) => router.push(x.href)} />
             </div>
           )}
         </section>
