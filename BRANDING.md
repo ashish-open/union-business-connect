@@ -569,3 +569,187 @@ the lavender. It is at `0.16`.
 were driven in light and dark, and the full SBI journey (phone → OTP → entity
 → consent → Today) was run to confirm "YONO Business" reads correctly in
 running copy, not just in the lockup.
+
+---
+
+## 10. Third pass — YONO Business branding, and upstream sync
+
+### 10.1 YONO Business has its own identity, and it is not SBI corporate
+
+Reading `yonobusiness.sbi.bank.in` the same way as the others turned up
+something the corporate site did not show: **YONO Business is a gradient
+brand.** Its signature surface — the Login button — is, verbatim from the
+computed style:
+
+```
+linear-gradient(64.89deg, rgb(198, 32, 82) 9.33%, rgb(40, 0, 113) 83.6%)
+```
+
+Crimson `#C62052` → indigo `#280071`, on a 65° diagonal. It appears 20+ times
+across the page. The rest:
+
+| Role | Value |
+|---|---|
+| Gradient start | `#C62052` crimson/magenta |
+| Gradient end | `#280071` indigo |
+| UI violet (chrome, icons, rules) | `#514FA1` |
+| Pale wash | `#F1F3FF`, `#EAEBF5` |
+| Blue accent | `#007AD9` |
+| Ink | `#242424` |
+| Type | Roboto |
+
+**The useful discovery: `#280071` is the same indigo already shipping as
+`--accent`.** The corporate read and the YONO read agree on the anchor colour.
+So the accent, `--brand-mark`, ring and focus states did not move — what was
+missing was the magenta and the diagonal.
+
+Changed:
+
+| Token | Was | Now |
+|---|---|---|
+| `--brand-grad-a` | `#3a108f` (a tonal lift I invented) | **`#c62052`** — YONO's own |
+| `--brand-grad-b` | `#280071` | unchanged — YONO's own |
+| `--brand-grad-angle` | *(did not exist — 180° hardcoded)* | **`65deg`** |
+| `--accent-soft` | `#efeaf8` | `#f1f3ff` — YONO's own pale wash |
+| dark `--accent` | `#a78bf5` | `#a5a2e8` — derived from YONO's `#514FA1` |
+| dark `--accent-strong` | `#c7b4fb` | `#b3b0f0` |
+| Hero glows | indigo / yellow | magenta + indigo + YONO violet |
+
+White on `#c62052` — the lightest end of the button, and therefore the worst
+case for the label — is **5.63:1**. It clears AA.
+
+**The gradient angle is now a token in both repos.** It was `180deg` hardcoded
+in three components. Union Bank's gradient genuinely runs top-to-bottom and
+YONO's genuinely runs at 65°, so the angle is tenant data like the colours
+are. `--brand-grad-angle` is `180deg` for Union — its rendering is byte-for-byte
+unchanged, verified in the browser — and `65deg` for SBI.
+
+**Not changed, deliberately.** `--gold` stays amber: YONO's palette is
+magenta / indigo / violet / cyan, and there is no yellow in it to be faithful
+to. `--info` stays the darkened cyan — still clearly distinct from a deep
+indigo accent. The mark stays the SBI keyhole, which is what the real YONO
+Business lockup pairs its wordmark with. The custom magenta "y" of that
+wordmark is not reproduced; **request the official YONO lockup as a vector**
+(this now supersedes O4).
+
+### 10.2 Upstream had moved — four commits, now in both tenants
+
+`pnb-business-connect-v2` had advanced from the fork point `4b7641c` to
+`a308589` while this work was happening:
+
+| Commit | What |
+|---|---|
+| `4e7fa9d` | Share the draft store across instances (adds `lib/voice/kv.ts`, KV env vars) |
+| `91cf378` | Understand amounts the way a caller says them |
+| `fbddbe2` | Today: queue first, verification code off the home screen |
+| `a308589` | Trim whitespace from incoming field names |
+
+All four are now in both tenant repos, cherry-picked with **Ajmal's authorship
+preserved**, not copy-pasted. Zero conflicts — `today/page.tsx` auto-merged
+around the one rebranded comment. Both repos pass `npm run check` after.
+
+The mechanism: each tenant repo now has an `upstream` remote pointing at
+`Ajmal-open/pnb-business-connect-v2`. Even though the tenants were squashed
+and share no merge base, `git fetch upstream` makes the objects reachable, so
+`git cherry-pick` works normally.
+
+```bash
+git fetch upstream
+git log --oneline <last-synced-sha>..upstream/main   # what is new
+git cherry-pick <sha>...                             # take it
+```
+
+### 10.3 How much actually differs — measured
+
+The three codebases are far closer than three repos implies. Union vs SBI,
+counted rather than estimated:
+
+- **150 source files. 10 differ. Two more exist in only one repo** (the mark
+  components).
+- Of ~167 differing lines, **102 are the palette block in `globals.css`** and
+  **26 are `brand.ts`**.
+- `statement/page.tsx`, `today/page.tsx` and `AppShell.tsx` differ by **8
+  lines, all of them comments** — zero functional difference.
+- `seed.ts` / `bankSeed.ts` differ only by the bank's name in demo data.
+- `balance.ts` differs by **one line**.
+
+So the real tenant surface is four things: **a palette block, a config object,
+a mark component, and the bank name in the seed data.** That is a tenant
+config. It is not a fork, and it should not be maintained as three forks —
+see the recommendation in §11.
+
+---
+
+## 11. Recommendation: stop maintaining three forks
+
+Three repos was the right call for the pitch. It is the wrong shape for
+"we will be modifying all three until this is finalised".
+
+### 11.1 What three forks costs
+
+The cherry-pick in §10.2 was painless — four commits, zero conflicts. That is
+not evidence the model works; it is luck. Those four commits happened to land
+almost entirely in `lib/voice/`, which no tenant has touched. The first time
+someone edits `globals.css`, `AppShell.tsx`, `BrandMark.tsx` or `seed.ts` —
+the ten files that diverge — every sync becomes a manual three-way merge, done
+twice, by someone holding the rebrand in their head.
+
+The worse failure is quieter. A fix lands in two repos and is forgotten in the
+third; nobody notices until a screen behaves differently for one bank in a
+demo. Forks do not tell you they have drifted.
+
+And the cost is per-change, forever, for a difference that is **167 lines**.
+
+### 11.2 What to do instead
+
+One repo, three tenants, selected at build time. The extraction is already
+~90% done — that is what §2 and §5 of this document were.
+
+```
+src/tenants/
+  index.ts                  # picks from NEXT_PUBLIC_TENANT
+  pnb/    { brand.ts, palette.css, Mark.tsx }
+  union/  { brand.ts, palette.css, Mark.tsx }
+  sbi/    { brand.ts, palette.css, Mark.tsx }
+```
+
+- **`brand.ts`** — already a single exported object in all three. Becomes
+  three objects and a lookup.
+- **`palette.css`** — lift the `:root` / `[data-theme="dark"]` /
+  `prefers-color-scheme` token blocks out of `globals.css` into one file per
+  tenant. `globals.css` keeps everything else and does `@import "./tenant.css"`,
+  where `tenant.css` is a Turbopack `resolveAlias` to the active tenant. One
+  import, resolved at build, no runtime cost, no selector explosion.
+- **`Mark.tsx`** — three tiny SVG components behind one lookup.
+- **`seed.ts`** — replace the literal bank names with `brand.bankName`. This
+  removes the largest remaining diff and is a strict improvement anyway.
+- **The comment-only diffs** — delete them. Eight lines of comments naming a
+  specific bank are the reason three files show as "differing" while being
+  functionally identical.
+
+Deployment: **three Vercel projects off one repo**, differing by one env var.
+Same as today from the outside; one codebase from the inside.
+
+**Where it should live:** fold into `pnb-business-connect-v2` rather than
+starting a new repo. It keeps Ajmal's history and his workflow — he carries on
+pushing to the same place — and it makes the tenant that already has the most
+active development the trunk instead of a fork's upstream.
+
+**Effort:** roughly half a day, most of it mechanical, and it is verifiable —
+build all three tenants and diff the rendered output against the current
+repos before deleting anything.
+
+### 11.3 Until then
+
+The `upstream` remote is wired in both tenant repos and works. The rule while
+three repos exist:
+
+1. **Product changes land in `pnb-business-connect-v2` first.** Always. It is
+   the trunk whether or not we have formalised that.
+2. Sync with `git fetch upstream && git cherry-pick`, never by copying files —
+   cherry-pick keeps authorship and tells you when it conflicts.
+3. **Branding changes never go upstream.** They are tenant-local by definition.
+4. Record the last synced upstream SHA in each tenant's README so "what is new"
+   is one command and not an archaeology exercise.
+
+Last synced: `a308589`.

@@ -42,6 +42,8 @@
   --gold: #ac8228;
   --gold-soft: #f8f0dc;
   /* fixed in both themes: the logo mark and primary-button gradient */
+  /* Angle is a token because banks do not agree on it. Union Bank's own gradient runs top-to-bottom. */
+  --brand-grad-angle: 180deg;
   --brand-mark: #00569b;
   --brand-grad-a: #0078c0;
   --brand-grad-b: #00569b;

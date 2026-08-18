@@ -7,7 +7,7 @@ type Size = "sm" | "md" | "lg";
 // purple, it IS the identity. Secondary is white with a hairline ring shadow.
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "text-white bg-[linear-gradient(180deg,var(--brand-grad-a),var(--brand-grad-b))] shadow-(--shadow-btn) hover:brightness-110 active:translate-y-px",
+    "text-white bg-[linear-gradient(var(--brand-grad-angle),var(--brand-grad-a),var(--brand-grad-b))] shadow-(--shadow-btn) hover:brightness-110 active:translate-y-px",
   secondary:
     "bg-surface text-ink shadow-(--shadow-ctl) hover:shadow-(--shadow-ctl-hover) hover:bg-surface-2/60 active:translate-y-px",
   ghost: "text-ink-2 hover:bg-surface-2 hover:text-ink",

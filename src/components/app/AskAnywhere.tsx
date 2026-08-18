@@ -325,7 +325,7 @@ export function AskAnywhere({
           aria-hidden={open}
           tabIndex={open ? -1 : 0}
           className={cn(
-            "absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(180deg,var(--brand-grad-a),var(--brand-grad-b))] text-white",
+            "absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(var(--brand-grad-angle),var(--brand-grad-a),var(--brand-grad-b))] text-white",
             open ? "pointer-events-none" : "cursor-pointer",
           )}
         >

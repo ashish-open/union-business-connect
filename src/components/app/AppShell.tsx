@@ -94,7 +94,7 @@ function AskTab({ onOpen }: { onOpen: () => void }) {
       aria-label="Ask about your money"
       className="flex flex-1 flex-col items-center gap-0.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 text-[10px] text-ink-3 cursor-pointer"
     >
-      <span className="ask-halo -mt-4 flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(180deg,var(--brand-grad-a),var(--brand-grad-b))] text-white shadow-(--shadow-btn)">
+      <span className="ask-halo -mt-4 flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(var(--brand-grad-angle),var(--brand-grad-a),var(--brand-grad-b))] text-white shadow-(--shadow-btn)">
         <Sparkles size={18} strokeWidth={2} />
       </span>
       Ask
