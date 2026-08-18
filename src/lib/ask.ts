@@ -9,6 +9,7 @@ import { channelFor } from "@/lib/channels";
 import { detectOutlets } from "@/lib/outlets";
 import { SettlementBatch } from "@/lib/settlements";
 import { StatementRow } from "@/lib/statement";
+import { brand } from "@/config/brand";
 
 export interface AskResult {
   answer: string;
@@ -66,7 +67,7 @@ export function ask(
     const pct = Math.round(((gross - received) / gross) * 100);
     return {
       answer: `Platforms kept ${formatINR(gross - received)} of ${formatINR(gross, { compact: true })} gross — an effective ${pct}% take.`,
-      detail: `${opts.batches.length} settlements, ${windowLabel} · gross from order reports minus bank credits. Your PNB QR takings carry no fee.`,
+      detail: `${opts.batches.length} settlements, ${windowLabel} · gross from order reports minus bank credits. Your ${brand.bankShort} QR takings carry no fee.`,
       match: (r) => r.kind === "marketplace",
     };
   }

@@ -60,7 +60,7 @@ export default function PayoutsPage() {
   if (!entity) return <AppShell />;
 
   const mine = sessionPayments[entity.id] ?? [];
-  const pnb = entity.accounts.find((a) => !a.readOnly);
+  const primaryAccount = entity.accounts.find((a) => !a.readOnly);
   const waiting = entity.approvals.filter((a) => !resolved[`${entity.id}/ap-${a.id}`]);
 
   // Destination-sized entry points for the two or three things you come to
@@ -99,7 +99,7 @@ export default function PayoutsPage() {
     <AppShell>
       {/* no in-content H1 — the title lives in the top bar and never scrolls */}
       <p className="text-[13px] text-ink-3">
-        {`Paid from ${brand.bankName} ${pnb ? maskAccount(pnb.masked) : ""} · no wallet to load`}
+        {`Paid from ${brand.bankName} ${primaryAccount ? maskAccount(primaryAccount.masked) : ""} · no wallet to load`}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-3">

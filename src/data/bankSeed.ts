@@ -24,7 +24,7 @@ export const FUNNEL = [
   { stage: "Signed up", count: 2412 },
   { stage: "Activated within 7 days", count: 1187 },
   { stage: "Channel or bank connected", count: 486 },
-  { stage: "Settlements land at PNB", count: 214 },
+  { stage: "Settlements land at Union Bank", count: 214 },
   { stage: "Credit drawn", count: 96 },
 ];
 
@@ -48,7 +48,7 @@ export const RM_LEADS: RmLead[] = [
     id: "l2",
     business: "Kaveri Traders",
     branch: "Peenya",
-    signal: "GST and vendor payments run from ICICI CA; only savings with PNB",
+    signal: "GST and vendor payments run from ICICI CA; only savings with Union Bank",
     value: "₹14.6L / month flows",
   },
   {

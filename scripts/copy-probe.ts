@@ -184,7 +184,7 @@ for (const e of ents) {
 const EXEMPT: Array<{ match: RegExp; why: string }> = [
   { match: /^src\/app\/signin\//, why: "consent disclosure — legal text, read once, before agreeing" },
   { match: /^src\/app\/(try|apply)\//, why: "pre-customer flows — the pitch is the product here" },
-  { match: /^src\/app\/bank\//, why: "internal PNB console, not an SME screen — different reader, different register" },
+  { match: /^src\/app\/bank\//, why: "internal bank console, not an SME screen — different reader, different register" },
   { match: /^src\/app\/design\//, why: "the design-system reference page documents itself" },
   { match: /^src\/app\/dispute\//, why: "a printable claim letter — it is a document, not a screen" },
   { match: /^src\/app\/close\/report\//, why: "a printable close report, same reason" },

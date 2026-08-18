@@ -101,9 +101,9 @@ export default function DisputePackPage() {
 
       {/* the document — hard-coded light, it's paper */}
       <div className="mx-auto w-full max-w-3xl bg-white px-8 py-10 text-[#1c1d22] shadow-(--shadow-card) print:max-w-none print:px-0 print:shadow-none sm:px-12">
-        <div className="flex items-start justify-between border-b-2 border-[#8e1230] pb-6">
+        <div className="flex items-start justify-between border-b-2 border-brand-mark pb-6">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8e1230]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-mark">
               Settlement variance claim
             </p>
             <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">
@@ -228,7 +228,7 @@ function SummaryStat({ label, value, strong }: { label: string; value: string; s
   return (
     <div>
       <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-[#8f919a]">{label}</p>
-      <p className={`tnum mt-1 text-xl font-semibold tracking-tight ${strong ? "text-[#8e1230]" : ""}`}>
+      <p className={`tnum mt-1 text-xl font-semibold tracking-tight ${strong ? "text-brand-mark" : ""}`}>
         {value}
       </p>
     </div>

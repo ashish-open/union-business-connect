@@ -2,7 +2,7 @@
 
 // Collections — receivables truth. Who owes you, chase them all with one
 // tap (WhatsApp + payment link), and every link collects straight into the
-// PNB account. Part payments and TDS-settled invoices are first-class.
+// bank account. Part payments and TDS-settled invoices are first-class.
 
 import { useMemo, useState } from "react";
 import { useDismissable } from "@/lib/useDismissable";
@@ -40,7 +40,7 @@ export default function CollectionsPage() {
 
   if (!entity || !stats) return <AppShell />;
 
-  const pnb = entity.accounts.find((a) => !a.readOnly);
+  const primaryAccount = entity.accounts.find((a) => !a.readOnly);
   const unchased = stats.overdue.filter((i) => !remindersSent[`${entity.id}/${i.number}`]);
   const oldest = stats.overdue.reduce((m, i) => Math.max(m, daysBetween(i.dueDate, ANCHOR_DATE)), 0);
 
@@ -78,7 +78,7 @@ export default function CollectionsPage() {
     <AppShell>
       {/* no in-content H1 — the title lives in the top bar and never scrolls */}
       <p className="text-[13px] text-ink-3">
-        {`Collects into ${brand.bankName} ${pnb ? maskAccount(pnb.masked) : ""} and reconciles itself`}
+        {`Collects into ${brand.bankName} ${primaryAccount ? maskAccount(primaryAccount.masked) : ""} and reconciles itself`}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-3">
@@ -193,8 +193,8 @@ export default function CollectionsPage() {
         </p>
       </section>
 
-      {linkOpen && pnb && (
-        <PaymentLinkSheet masked={maskAccount(pnb.masked)} onClose={() => setLinkOpen(false)} />
+      {linkOpen && primaryAccount && (
+        <PaymentLinkSheet masked={maskAccount(primaryAccount.masked)} onClose={() => setLinkOpen(false)} />
       )}
     </AppShell>
   );
@@ -278,7 +278,7 @@ function PaymentLinkSheet({ masked, onClose }: { masked: string; onClose: () => 
   const [copied, setCopied] = useState(false);
   const amt = Number(amount.replace(/\D/g, "")) || 0;
   const slug = customer.toLowerCase().replace(/[^a-z]/g, "").slice(0, 8) || "pay";
-  const link = `pnb.bc/pay/${slug}-${amt}`;
+  const link = `${brand.payLinkDomain}/pay/${slug}-${amt}`;
 
   return (
     <div

@@ -117,15 +117,16 @@ export default function SignInPage() {
 
 /* ------------------------------------------------------------------ */
 
-// The brand moment: a deep-maroon aurora with a real product preview —
+// The brand moment: an aurora in the bank's colours with a real product
+// preview —
 // built from the same StatementLine component the app ships, not a mock.
 function BrandPanel() {
   return (
-    <aside className="relative hidden overflow-hidden bg-[#3e081a] lg:flex lg:flex-col lg:justify-between lg:p-10">
+    <aside className="relative hidden overflow-hidden bg-(--hero-base) lg:flex lg:flex-col lg:justify-between lg:p-10">
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="animate-drift absolute -left-1/4 -top-1/3 h-4/5 w-4/5 rounded-full bg-[#a91d55] opacity-50 blur-[110px]" />
-        <div className="animate-drift absolute -bottom-1/3 -right-1/4 h-3/4 w-3/4 rounded-full bg-[#690f36] opacity-70 blur-[100px] [animation-delay:-7s]" />
-        <div className="animate-drift absolute right-[8%] top-[12%] h-2/5 w-2/5 rounded-full bg-[#c99a3f] opacity-[0.13] blur-[90px] [animation-delay:-3s]" />
+        <div className="animate-drift absolute -left-1/4 -top-1/3 h-4/5 w-4/5 rounded-full bg-(--hero-glow-1) opacity-50 blur-[110px]" />
+        <div className="animate-drift absolute -bottom-1/3 -right-1/4 h-3/4 w-3/4 rounded-full bg-(--hero-glow-2) opacity-70 blur-[100px] [animation-delay:-7s]" />
+        <div className="animate-drift absolute right-[8%] top-[12%] h-2/5 w-2/5 rounded-full bg-(--hero-accent) opacity-[0.13] blur-[90px] [animation-delay:-3s]" />
       </div>
 
       <div className="relative">

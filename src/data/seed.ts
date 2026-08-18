@@ -162,13 +162,13 @@ const CARD_DAILY = [38200, 33400, 41800, 36700, 44100];
 /**
  * Marketplace money landing at the OTHER bank.
  *
- * Nadi Foods runs a current account at ICICI as well as the PNB one, and two of
+ * Nadi Foods runs a current account at ICICI as well as the Union Bank one, and two of
  * its rails were pointed there when they were set up. The lines are visible
  * through AA and nothing more can be done with them: no report can be fetched
  * against an account we do not hold, so no gross, no fee, no claim — the exact
  * asymmetry that makes moving the payout worth something.
  *
- * Amounts and dates mirror the PNB settlements so the two are comparable; the
+ * Amounts and dates mirror the Union Bank settlements so the two are comparable; the
  * narrations are the real ones, because the rail has to be identifiable from
  * the string alone — that identification is the whole basis of the prompt.
  */
@@ -537,7 +537,7 @@ function vistaraTxns(): Txn[] {
 
 /* ------------------------------------------------------------------ */
 /* Arka Kitchen — banks-elsewhere guest (Journey B: value before account)
-/* One cloud kitchen on HDFC. Never in BANK_CUSTOMERS — a PNB sign-in
+/* One cloud kitchen on HDFC. Never in BANK_CUSTOMERS — a Union Bank sign-in
 /* can't find it; /try imports it directly as the uploaded statement.    */
 /* ------------------------------------------------------------------ */
 
@@ -762,7 +762,7 @@ const KAAYA_INVOICES: Invoice[] = [
   },
 ];
 
-/** The uploaded-statement entity for Journey B. Not a PNB customer. */
+/** The uploaded-statement entity for Journey B. Not a Union Bank customer. */
 export const GUEST_ENTITY: Entity = {
   id: "arka-kitchen",
   name: "Arka Kitchen",
@@ -802,7 +802,7 @@ export const BANK_CUSTOMERS: BankCustomer[] = [
         gstin: "29AAFCN2201Q1Z5",
         secondUser: "Priya (accountant)",
         accounts: [
-          { bank: "Punjab National Bank", masked: "••4821", label: "Current account", balance: 684510 },
+          { bank: "Union Bank of India", masked: "••4821", label: "Current account", balance: 684510 },
           { bank: "ICICI Bank", masked: "••2210", label: "Current account", balance: 112040, readOnly: true },
         ],
         txns: nadiFoodsTxns(),
@@ -836,7 +836,7 @@ export const BANK_CUSTOMERS: BankCustomer[] = [
         city: "Bengaluru",
         gstin: "29AAKFN8814P1ZY",
         accounts: [
-          { bank: "Punjab National Bank", masked: "••7702", label: "Current account", balance: 231480 },
+          { bank: "Union Bank of India", masked: "••7702", label: "Current account", balance: 231480 },
         ],
         txns: commissaryTxns(),
         invoices: [],
@@ -860,8 +860,8 @@ export const BANK_CUSTOMERS: BankCustomer[] = [
         gstin: "29AAQFV7719C1Z2",
         secondUser: "Rao & Associates (CA)",
         accounts: [
-          { bank: "Punjab National Bank", masked: "••3308", label: "Current account (ops)", balance: 8412600 },
-          { bank: "Punjab National Bank", masked: "••7091", label: "RERA designated · Vistara One", balance: 26718400 },
+          { bank: "Union Bank of India", masked: "••3308", label: "Current account (ops)", balance: 8412600 },
+          { bank: "Union Bank of India", masked: "••7091", label: "RERA designated · Vistara One", balance: 26718400 },
         ],
         txns: vistaraTxns(),
         invoices: [],
@@ -884,7 +884,7 @@ export const BANK_CUSTOMERS: BankCustomer[] = [
         city: "Bengaluru",
         gstin: "29ABKPR6642M1ZQ",
         accounts: [
-          { bank: "Punjab National Bank", masked: "••7264", label: "Current account", balance: 241830 },
+          { bank: "Union Bank of India", masked: "••7264", label: "Current account", balance: 241830 },
           { bank: "State Bank of India", masked: "••9931", label: "Savings (personal)", balance: 86200, readOnly: true },
         ],
         txns: rajeshTxns(),
@@ -925,7 +925,7 @@ export const BANK_CUSTOMERS: BankCustomer[] = [
         gstin: "29AAWFK6612M1Z8",
         accounts: [
           {
-            bank: "Punjab National Bank",
+            bank: "Union Bank of India",
             masked: "••7734",
             label: "Current account",
             balance: 1842600,
@@ -1064,7 +1064,7 @@ export const VOICE_DEMO_CUSTOMER: BankCustomer = {
       gstin: "29AASPC4417K1ZP",
       accounts: [
         {
-          bank: "Punjab National Bank",
+          bank: "Union Bank of India",
           masked: "••4421",
           label: "Current account",
           balance: 742380,

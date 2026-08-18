@@ -12,6 +12,7 @@
 
 import { ANCHOR_DATE, Account, Entity } from "@/data/seed";
 import { addDays } from "@/lib/format";
+import { brand } from "@/config/brand";
 
 export interface BalancePoint {
   date: string;
@@ -46,12 +47,16 @@ export interface BalanceView {
   trustworthy: boolean;
 }
 
+// A general lookup — the entities here bank with several institutions and the
+// statement has to name each one. Our own tenant leads; the rest are the banks
+// that actually appear in the data, alphabetical.
 const BANK_CODE: Array<[RegExp, string]> = [
-  [/punjab|pnb/i, "PUNB"],
+  [brand.bankPattern, brand.ifscPrefix],
+  [/axis/i, "UTIB"],
   [/hdfc/i, "HDFC"],
   [/icici/i, "ICIC"],
+  [/punjab national|pnb/i, "PUNB"],
   [/state bank|sbi/i, "SBIN"],
-  [/axis/i, "UTIB"],
 ];
 
 function ifscFor(account: Account): string {

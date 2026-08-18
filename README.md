@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Business Connect — Union Bank of India
 
-## Getting Started
+Business banking that explains your money back to you. A Next.js 16 / React 19
+prototype covering the SME journey: smart statement, reconciliation, books,
+collections, payouts, compliance, and a voice agent.
 
-First, run the development server:
+Forked from `pnb-business-connect-v2`. Bank-facing strings and values live in
+[`src/config/brand.ts`](src/config/brand.ts); the palette lives in
+[`src/app/globals.css`](src/app/globals.css); the device is
+[`src/components/app/marks/UnionMark.tsx`](src/components/app/marks/UnionMark.tsx).
+See [BRANDING.md](BRANDING.md) for how the palette was derived and what is
+still outstanding.
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.example` to `.env.local` and fill it in for the voice agent. The
+keys are per-tenant — do not reuse another bank's.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Checks
 
-## Learn More
+```bash
+npm run check
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`tsc --noEmit`, ESLint, and six probes. `probe:contrast` is the one that
+matters for a rebrand: it asserts every text token clears WCAG AA against the
+surfaces it actually lands on, in both themes, and exits non-zero if not.

@@ -21,7 +21,7 @@
  * real gap and must not be described as an audit trail.
  *
  * What is NOT resolved here is where a callback actually goes. The Instructions
- * promise a human and nobody is behind it yet (handover §10). That is a PNB
+ * promise a human and nobody is behind it yet (handover §10). That is a bank
  * decision, not a code one, and the honest place for the caveat is the handover
  * rather than the caller's ear — a tool that recorded a request while telling
  * the caller it might go nowhere would be worse than not offering it.

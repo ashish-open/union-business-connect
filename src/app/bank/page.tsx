@@ -104,7 +104,7 @@ export default function BankConsolePage() {
               sub={`${HEADLINE.loansCount} loans · underwritten on verified flows`}
             />
             <Stat
-              label="Settlements now landing at PNB"
+              label={`Settlements now landing at ${brand.bankShort}`}
               value={`${formatINR(HEADLINE.settlementsRedirectedMonthly, { compact: true })}/mo`}
               sub={`${HEADLINE.settlementSwitchers} businesses switched`}
             />

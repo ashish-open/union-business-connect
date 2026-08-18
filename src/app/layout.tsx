@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { themeScript } from "@/lib/theme";
+import { brand } from "@/config/brand";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Business Connect",
+  title: `${brand.productName} · ${brand.bankShort}`,
   description: "Business banking that explains your money back to you.",
 };
 

@@ -1,16 +1,16 @@
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/cn";
+import { UnionMark } from "./marks/UnionMark";
 
 // The bank's real device, not a monogram.
 //
-// This used to draw a maroon tile with the letters "BC" and a gold dot in the
-// corner — a stand-in that outlived its reason, since the actual PNB Business
-// Connect lockup was sitting in the previous prototype the whole time. The
-// dot meant nothing, and inventing a mark for a bank that has one is the kind
-// of detail that tells a client you did not look.
+// The previous tenant cropped its device out of a master raster with three
+// hand-measured ratios in CSS. That worked, but it meant the next bank had to
+// re-measure them against a different lockup, and at 26px in the rail a
+// cropped raster goes soft. The device is now an inline SVG component: it
+// scales to every size we ask for, and swapping tenants is an import.
 //
-// The device comes out of the lockup by CSS (see `.pnb-mark` in globals.css);
-// the wordmark stays as text, because at 13px a rasterised one would be soft
+// The wordmark stays as text, because at 13px a rasterised one would be soft
 // and it could not follow the theme.
 
 const MARK: Record<"sm" | "md" | "lg", number> = { sm: 26, md: 30, lg: 40 };
@@ -31,11 +31,11 @@ export function BrandMark({
   return (
     <span className="flex items-center gap-2.5">
       <span
-        className={cn("pnb-mark", onDark && "pnb-mark--on-dark")}
+        className={cn("brand-mark", onDark && "brand-mark--on-dark")}
         style={{ "--mark": `${MARK[size]}px` } as React.CSSProperties}
-        role="img"
-        aria-label={`${brand.bankShort} ${brand.productName}`}
-      />
+      >
+        <UnionMark title={`${brand.bankShort} ${brand.productName}`} />
+      </span>
       {withName && (
         <span className="min-w-0 leading-none">
           <span

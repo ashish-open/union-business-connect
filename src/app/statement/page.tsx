@@ -51,6 +51,7 @@ import { CompositionBar } from "@/components/statement/CompositionBar";
 import { cn } from "@/lib/cn";
 import { addDays, fmtDate, formatINR, maskAccount, parseAmount, plural } from "@/lib/format";
 import { useEntity, useStore } from "@/store/useStore";
+import { brand } from "@/config/brand";
 
 type Filter = "all" | "in" | "out" | "issues";
 
@@ -396,7 +397,7 @@ function StatementView() {
           </div>
         </div>
         {/* Money at another bank, stated rather than folded into the figures
-            above it. Those describe the PNB account; this is what AA can see
+            above it. Those describe the bank's own account; this is what AA can see
             and nothing here can reconcile. */}
         {data.externalIn + data.externalOut > 0 && (
           <p className="mt-3 border-t border-border pt-3 text-[11.5px] text-ink-3">
@@ -462,7 +463,7 @@ function StatementView() {
               an offer only for a business whose settlements land elsewhere. */}
           {/* Only when it is WRONG.
               This ran on every visit: "Flipkart and Amazon settle ≈₹3.5L a week
-              into Punjab National Bank ••7734 · read every morning, so shorts
+              into Union Bank of India ••7734 · read every morning, so shorts
               show the same day" — twenty words, the longest sentence on the
               page, spent telling an owner that a thing which is already correct
               is correct. An achievement needs no announcement (D1); a
@@ -988,7 +989,7 @@ function FeeDragLine({ batches }: { batches: SettlementBatch[] }) {
     <p className="w-full border-t border-border pt-2.5 text-[12px] leading-5 text-ink-2">
       Platforms kept <span className="tnum font-semibold text-ink">{formatINR(gross - received)}</span> of{" "}
       {formatINR(gross, { compact: true })} gross this window — an effective {pct}% take.{" "}
-      <span className="text-ink-3">Your PNB QR takings carry no fee.</span>
+      <span className="text-ink-3">{`Your ${brand.bankShort} QR takings carry no fee.`}</span>
     </p>
   );
 }
@@ -1073,7 +1074,7 @@ function Row({ row, onOpen, href }: { row: StatementRow; onOpen?: () => void; hr
         <div className="min-w-0">
           <p className="flex min-w-0 items-center gap-1.5 text-[13.5px] text-ink">
             {/* Which bank saw it. Absent on our own lines, because saying
-                "PNB" on 244 of 248 rows would be noise; present here because
+                "Union Bank" on 244 of 248 rows would be noise; present here because
                 it is the reason the row behaves differently. */}
             {row.externalBank && (
               <span className="shrink-0 rounded bg-surface-2 px-1.5 py-px text-[10px] font-medium uppercase tracking-[0.04em] text-ink-3">
@@ -1132,7 +1133,7 @@ function Row({ row, onOpen, href }: { row: StatementRow; onOpen?: () => void; hr
             className="font-medium text-accent hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
-            Point this payout at your PNB account
+            {`Point this payout at your ${brand.bankShort} account`}
           </Link>
           {` to see the fee and check it against the rate card.`}
         </p>
@@ -1316,7 +1317,7 @@ function BatchPanel({
             ))}
             <div className="my-2 border-t border-border" />
             <WaterfallRow label="Should have landed" amount={batch.expectedNet} strong />
-            <WaterfallRow label={`Landed in PNB ${account}`} amount={batch.received} pos />
+            <WaterfallRow label={`Landed in ${brand.bankShort} ${account}`} amount={batch.received} pos />
           </div>
 
           {gap > 0 ? (

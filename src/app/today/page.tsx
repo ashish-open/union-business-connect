@@ -312,7 +312,7 @@ export default function TodayPage() {
         <aside className="order-1 space-y-5 lg:order-2">
           <Card>
             {/* One account: the label names it, because "Across 1 account
-                ₹18,42,600" over a row reading "Punjab National Bank ••7734
+                ₹18,42,600" over a row reading "Union Bank of India ••7734
                 ₹18,42,600" is the same figure twice and a list of one. */}
             <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
               {entity.accounts.length === 1

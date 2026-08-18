@@ -68,6 +68,32 @@ These are the real work. Found by grepping `pnb|punjab` across `src/`,
 | L14 | `src/app/favicon.ico` | PNB favicon | Medium |
 | L15 | `README.md` | Still the stock `create-next-app` README | Low |
 
+### 2.3 Two leak classes the name grep could not see
+
+The table above came from grepping `pnb|punjab`. That finds every leak that
+*says* PNB. It cannot find a leak that only *looks* like PNB — a hex literal.
+Grepping the brand's colour (`8e1230`, `9b1240`) instead turned up two more,
+one of them the single loudest surface in the product:
+
+| # | Location | Leak | Severity |
+|---|---|---|---|
+| L16 | `src/app/signin/page.tsx:124-128` | The sign-in aurora — `#3e081a` base with `#a91d55`, `#690f36`, `#c99a3f` glows, hardcoded in the component. This is the first thing anyone sees and it is 100% PNB maroon. | **Critical** |
+| L17 | `close/report`, `dispute/[id]`, `project/qpr` | 8 sites hardcoding `#8e1230` — the PNB maroon — as the rule and heading colour of the three printable documents. | **High** |
+
+Both are now tokens. The aurora became `--hero-base` / `--hero-glow-1` /
+`--hero-glow-2` / `--hero-accent`, declared next to `--brand-mark` and fixed in
+both themes for the same reason it is: a lit brand surface is white-on-dark
+either way. The documents route through the existing `brand-mark` utility.
+
+**What correctly stayed hardcoded.** Those three documents also fix their own
+paper palette — `#f2f2ee` stock, `#1c1d22` ink, `#5d5f67` / `#8f919a` greys,
+`#e9e9e2` rules — and that is not a leak. They are print artefacts; they must
+not follow dark mode, and none of those greys is a bank colour. Only the
+maroon was wrong. The `Avatar` palette is likewise deliberate and neutral.
+
+**The lesson for tenant three:** grep the outgoing tenant's hex, not just its
+name.
+
 **Recommended fix pattern:** extend `brand.ts` rather than sprinkling more
 strings. Add `bankNameShortInCopy`, `ifscPrefix`, `payLinkDomain`, and a
 `markSrc`, then route L3, L6-L9, L13 through it. That turns a third tenant into
@@ -421,3 +447,62 @@ carries PNB-specific commit messages into a client repo.
 | O6 | UBI: is red acceptable as punctuation only, or does the bank want it as the primary accent? (§3.2) | Client |
 | O7 | Confirm support numbers for the business segment — both banks publish several | Bank |
 | O8 | Confirm demo entity names (Nadi Foods etc.) carry over, or need per-bank fiction | Internal |
+
+---
+
+## 8. Delivered
+
+Both repos are rebranded, and both pass `npm run check` — `tsc --noEmit`,
+ESLint, and all six probes — with zero PNB references remaining in `src/`.
+
+| | `union-business-connect` | `sbi-business-connect` |
+|---|---|---|
+| Port (local) | 3003 | 3004 |
+| `--accent` light | `#00569b` — **7.49:1** | `#280071` — **15.81:1** |
+| `--accent` dark | `#6fb6e8` — **8.06:1** | `#a78bf5` — **6.47:1** |
+| `--info` | violet `#5145b8` (moved off blue) | SBI cyan `#0b6f96` |
+| `--gold` | amber, unchanged (semantic) | SBI yellow `#8a6a00` |
+| Aurora | navy with a red glow | indigo with a yellow glow |
+| Mark | `UnionMark.tsx` | `SbiMark.tsx` |
+| IFSC | `UBIN` | `SBIN` |
+| Pay link | `unionbank.bc` | `sbi.bc` |
+
+### 8.1 The marks are traced, not approximated
+
+Both devices were measured off the banks' own lockups rather than drawn by
+eye. Each master was loaded into a canvas and scanned a row at a time, the
+colour regions reduced to spans, and the geometry read off the result:
+
+- **Union Bank** — a red `#ed1c24` "U" and a blue `#006cb7` "n", the "Un" of
+  Union. Both are constant-width round-capped strokes, so the trace is their
+  centrelines stroked at the measured width. Overlaid on the original at 10×,
+  the two register to within the raster's own antialiasing. Note the mark's
+  blue is **not** the site's navy `#00569b` — they are different blues, and
+  using the CSS token would have been subtly wrong.
+- **SBI** — the keyhole. The disc is a true circle 42 units across; the bore
+  is radius 6 **concentric with it**, not offset upward as it is usually
+  redrawn; the slot is a constant 4 wide running out through the bottom edge.
+  The keyhole is masked rather than filled white, because in the original it
+  is transparent and takes the colour behind it.
+
+Both are still traces. §7 O3/O4 stand: ask each bank for the official vector.
+
+### 8.2 Verified, not assumed
+
+- `probe:contrast` passes on both, both themes — the numbers in §3 and §4 are
+  the probe's own output, not a spreadsheet.
+- Both apps were run and driven: sign-in, OTP, entity selection, consent,
+  Today, Statement, the bank console, and the design-system page, in light and
+  dark. That is how L16 was caught — the palette was already correct and the
+  sign-in page was still maroon.
+
+### 8.3 Known cosmetic notes
+
+- `--gold` and `--warn` sit close in hue in both tenants. They did in PNB too
+  (`#ac8228` vs `#935207`); this is inherited, not introduced. If it matters,
+  `--gold` is the token to move.
+- `--chart-1` (`#2a78d6`) is brand-adjacent for Union Bank. Charts are
+  decorative, not semantic, so it is left alone — noted in §3.2.
+- SBI's primary button is a deep indigo on a dark page in dark mode, so it
+  recedes more than PNB's maroon did. `--brand-grad-*` is fixed in both themes
+  by design; lifting it for dark is a one-line change if the client asks.

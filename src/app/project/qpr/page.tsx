@@ -53,9 +53,9 @@ export default function QprPage() {
 
       <div className="mx-auto max-w-3xl bg-white px-8 py-10 text-[#1c1d22] shadow-(--shadow-card) print:max-w-none print:px-0 print:shadow-none sm:px-12">
         {/* header */}
-        <div className="flex items-start justify-between gap-6 border-b-2 border-[#8e1230] pb-5">
+        <div className="flex items-start justify-between gap-6 border-b-2 border-brand-mark pb-5">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8e1230]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-mark">
               Quarterly progress report · draft
             </p>
             <h1 className="mt-1.5 text-[22px] font-semibold tracking-tight">

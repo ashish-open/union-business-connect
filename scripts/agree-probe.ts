@@ -206,7 +206,7 @@ const bothWays: Entity = {
   legalName: "Both Directions",
   constitution: "Proprietorship",
   city: "Bengaluru",
-  accounts: [{ bank: "Punjab National Bank", masked: "••0000", label: "Current account", balance: 0 }],
+  accounts: [{ bank: "Union Bank of India", masked: "••0000", label: "Current account", balance: 0 }],
   txns: [
     // Narrations no alias can resolve, so both land in Suspense.
     { id: "bd1", date: ANCHOR_DATE, amount: 50000, direction: "credit", narration: "NEFT/QQZZUNKNOWNPARTY/1", mode: "NEFT", ref: "BD1" },

@@ -95,9 +95,9 @@ export default function CloseReportPage() {
       </div>
 
       <div className="mx-auto w-full max-w-3xl bg-white px-8 py-10 text-[#1c1d22] shadow-(--shadow-card) print:max-w-none print:px-0 print:shadow-none sm:px-12">
-        <div className="flex items-start justify-between border-b-2 border-[#8e1230] pb-6">
+        <div className="flex items-start justify-between border-b-2 border-brand-mark pb-6">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8e1230]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-mark">
               Period close report
             </p>
             <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">{report.close.period}</h1>
@@ -216,7 +216,7 @@ function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   return (
     <tr className="border-b border-[#efefe9]">
       <td className="py-1.5 pr-4 text-[#5d5f67]">{k}</td>
-      <td className={`tnum py-1.5 text-right font-medium ${strong ? "text-[#8e1230]" : ""}`}>{v}</td>
+      <td className={`tnum py-1.5 text-right font-medium ${strong ? "text-brand-mark" : ""}`}>{v}</td>
     </tr>
   );
 }

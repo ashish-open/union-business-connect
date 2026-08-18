@@ -207,7 +207,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   // with the server's.
   if (!hydrated || !customer || !entity) return <ShellFrame pathname={pathname} />;
 
-  const pnbAccount = entity.accounts.find((a) => !a.readOnly);
+  const primaryAccount = entity.accounts.find((a) => !a.readOnly);
 
   return (
     <div className="min-h-dvh bg-bg">
@@ -215,7 +215,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-56 flex-col border-r border-border bg-surface md:flex">
         {/* Whose product this is. Stated once, quietly, and never interactive
             — the mark carries the bank, so the rail does not spend a second
-            line repeating "Punjab National Bank" under it. */}
+            line repeating "Union Bank of India" under it. */}
         <div className="px-3.5 pb-3 pt-4">
           <BrandMark size="sm" withBank={false} />
         </div>
@@ -242,9 +242,9 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
               <span className="block truncate text-[13px] font-medium leading-4 text-ink">
                 {entity.name}
               </span>
-              {pnbAccount && (
+              {primaryAccount && (
                 <span className="mt-0.5 block truncate text-[10.5px] leading-3.5 text-ink-3 tnum">
-                  {maskAccount(pnbAccount.masked)}
+                  {maskAccount(primaryAccount.masked)}
                 </span>
               )}
             </span>
@@ -463,9 +463,9 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
                   <span className="block truncate text-[13.5px] font-semibold text-ink">
                     {entity.name}
                   </span>
-                  {pnbAccount && (
+                  {primaryAccount && (
                     <span className="block truncate text-[11px] text-ink-3 tnum">
-                      {maskAccount(pnbAccount.masked)}
+                      {maskAccount(primaryAccount.masked)}
                     </span>
                   )}
                 </span>

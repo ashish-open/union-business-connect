@@ -26,7 +26,7 @@ function constantTimeEqual(a: string, b: string): boolean {
  * Vercel puts the client address first in x-forwarded-for. Falls back to
  * x-real-ip. Both are set by the platform, not by the caller, so they are
  * trustworthy *on Vercel* — this check would be worthless behind an arbitrary
- * proxy, which is worth remembering if this ever moves to PNB's cloud.
+ * proxy, which is worth remembering if this ever moves to the bank's cloud.
  */
 export function callerIp(headers: Headers): string | null {
   const fwd = headers.get("x-forwarded-for");

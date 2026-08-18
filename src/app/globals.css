@@ -4,7 +4,7 @@
    Design tokens — Stripe grammar:
    · cards separated by ring-shadows, not borders
    · cool neutrals on white; the tinted page bg stays barely-there
-   · one vivid brand accent (PNB maroon), used in small strong doses
+   · one vivid brand accent (Union Bank navy), used in small strong doses
    · gradient primary buttons with an inset top highlight
    · 13–14px UI density, big tracked-tight numerals
 --------------------------------------------------------------------------- */
@@ -36,16 +36,27 @@
   --ink-invert: #ffffff;
 
   /* brand */
-  --accent: #9b1240;
-  --accent-strong: #7e0e33;
-  --accent-soft: #fbedf2;
+  --accent: #00569b;
+  --accent-strong: #003f73;
+  --accent-soft: #e8f0f9;
   --gold: #ac8228;
   --gold-soft: #f8f0dc;
   /* fixed in both themes: the logo mark and primary-button gradient */
-  --brand-mark: #8e1230;
-  --brand-grad-a: #b01d4f;
-  --brand-grad-b: #8e1230;
-  --ring: rgb(155 18 64 / 0.16);
+  --brand-mark: #00569b;
+  --brand-grad-a: #0078c0;
+  --brand-grad-b: #00569b;
+
+  /* The sign-in aurora. Fixed in both themes — it is a lit brand surface, not
+     a page, and it is white-text-on-dark either way. Tokens rather than
+     literals because this is the loudest colour in the product and the next
+     tenant must not have to find it inside a component. The third light is
+     the bank's second colour at 13%: Union Bank uses red as punctuation, and
+     an aurora glow is exactly that. */
+  --hero-base: #04203a;
+  --hero-glow-1: #0f6fb8;
+  --hero-glow-2: #00447c;
+  --hero-accent: #e31e24;
+  --ring: rgb(0 86 155 / 0.16);
 
   /* semantic */
   --pos: #077d55;
@@ -54,8 +65,8 @@
   --warn-soft: #fcf2e0;
   --neg: #c03434;
   --neg-soft: #fcecec;
-  --info: #2e6cca;
-  --info-soft: #ecf2fc;
+  --info: #5145b8;
+  --info-soft: #eeecfa;
 
   /*
    * Categorical chart hues — identity, never state.
@@ -97,8 +108,8 @@
   --shadow-ctl: 0 0 0 1px rgb(23 26 33 / 0.09), 0 1px 2px rgb(23 26 33 / 0.06);
   --shadow-ctl-hover: 0 0 0 1px rgb(23 26 33 / 0.13), 0 2px 4px rgb(23 26 33 / 0.08);
   --shadow-focus: 0 0 0 1px var(--accent), 0 0 0 4px var(--ring);
-  --shadow-ask: 0 0 0 1px var(--accent), 0 0 22px -4px rgb(155 18 64 / 0.45);
-  --ask-rim: rgb(155 18 64 / 0.30);
+  --shadow-ask: 0 0 0 1px var(--accent), 0 0 22px -4px rgb(0 86 155 / 0.45);
+  --ask-rim: rgb(0 86 155 / 0.30);
 }
 
 [data-theme="dark"] {
@@ -121,12 +132,12 @@
   --chart-8: #e66767;
   --ink-invert: #16181d;
 
-  --accent: #ee6d94;
-  --accent-strong: #f78bab;
-  --accent-soft: #3a1524;
+  --accent: #6fb6e8;
+  --accent-strong: #8ec7ee;
+  --accent-soft: #0f2438;
   --gold: #d2a54b;
   --gold-soft: #2c2414;
-  --ring: rgb(238 109 148 / 0.24);
+  --ring: rgb(111 182 232 / 0.24);
 
   --pos: #4cc38a;
   --pos-soft: #132a1e;
@@ -134,8 +145,8 @@
   --warn-soft: #2c2410;
   --neg: #f2685c;
   --neg-soft: #331715;
-  --info: #6fa8f5;
-  --info-soft: #14233b;
+  --info: #9d92ee;
+  --info-soft: #1b1a33;
 
   --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.07), 0 1px 2px rgb(0 0 0 / 0.4),
     0 8px 24px rgb(0 0 0 / 0.32);
@@ -145,8 +156,8 @@
   --shadow-ctl: 0 0 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.35);
   --shadow-ctl-hover: 0 0 0 1px rgb(255 255 255 / 0.16), 0 2px 4px rgb(0 0 0 / 0.4);
   --shadow-focus: 0 0 0 1px var(--accent), 0 0 0 4px var(--ring);
-  --shadow-ask: 0 0 0 1px var(--accent), 0 0 26px -4px rgb(238 109 148 / 0.45);
-  --ask-rim: rgb(238 109 148 / 0.34);
+  --shadow-ask: 0 0 0 1px var(--accent), 0 0 26px -4px rgb(111 182 232 / 0.45);
+  --ask-rim: rgb(111 182 232 / 0.34);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -170,12 +181,12 @@
     --chart-8: #e66767;
     --ink-invert: #16181d;
 
-    --accent: #ee6d94;
-    --accent-strong: #f78bab;
-    --accent-soft: #3a1524;
+    --accent: #6fb6e8;
+    --accent-strong: #8ec7ee;
+    --accent-soft: #0f2438;
     --gold: #d2a54b;
     --gold-soft: #2c2414;
-    --ring: rgb(238 109 148 / 0.24);
+    --ring: rgb(111 182 232 / 0.24);
 
     --pos: #4cc38a;
     --pos-soft: #132a1e;
@@ -183,8 +194,8 @@
     --warn-soft: #2c2410;
     --neg: #f2685c;
     --neg-soft: #331715;
-    --info: #6fa8f5;
-    --info-soft: #14233b;
+    --info: #9d92ee;
+    --info-soft: #1b1a33;
 
     --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.07), 0 1px 2px rgb(0 0 0 / 0.4),
       0 8px 24px rgb(0 0 0 / 0.32);
@@ -194,8 +205,8 @@
     --shadow-ctl: 0 0 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.35);
     --shadow-ctl-hover: 0 0 0 1px rgb(255 255 255 / 0.16), 0 2px 4px rgb(0 0 0 / 0.4);
     --shadow-focus: 0 0 0 1px var(--accent), 0 0 0 4px var(--ring);
-    --shadow-ask: 0 0 26px -4px rgb(238 109 148 / 0.45), 0 0 0 1px var(--accent);
-    --ask-rim: rgb(238 109 148 / 0.34);
+    --shadow-ask: 0 0 26px -4px rgb(111 182 232 / 0.45), 0 0 0 1px var(--accent);
+    --ask-rim: rgb(111 182 232 / 0.34);
   }
 }
 
@@ -265,42 +276,32 @@ body {
   border-radius: 4px;
 }
 
-/* -------------------------------------------------- the PNB device
+/* -------------------------------------------------- the bank device
 
-   The bank's own mark, cropped out of the master lockup (`/pnb-logo.png`,
-   724×241) by CSS rather than by re-cutting the asset — so there is one file
-   to replace when a second tenant arrives, and no hand-edited derivative to
-   drift from it.
+   The mark is an inline SVG component (`src/components/app/marks/`), so this
+   rule only has to size the box. The previous tenant cropped its device out
+   of a master raster here, with three ratios measured off the artwork by
+   hand — which meant a new tenant had to re-measure them, and at 26px the
+   crop went soft.
 
-   The crop box IS the maroon square, measured off the artwork: 120.33px wide
-   at (62, 47.67) in the sprite's own pixels. Nothing outside the square is
-   ever shown, so the white the source is baked onto cannot appear — and the
-   radius clips the corners the square itself rounds off.
-
-   The three ratios below are that box divided by its own width, which is what
-   lets a single `--mark` size drive the whole crop.
+   What survives is the one part that was never bank-specific: on the brand
+   gradient a mark in the bank's own colour would vanish, so it sits on a
+   white chip. Every bank makes the same move when its mark meets its colour.
 --------------------------------------------------------------------- */
 
-.pnb-mark {
+.brand-mark {
   --mark: 30px;
   width: var(--mark);
   height: var(--mark);
   flex: none;
-  border-radius: 22%;
-  background-image: url("/pnb-logo.png");
-  background-repeat: no-repeat;
-  background-size: calc(var(--mark) * 6.0166) auto; /* 724 / 120.33 */
-  background-position: calc(var(--mark) * -0.51524) /* 62 / 120.33 */
-    calc(var(--mark) * -0.39612); /* 47.67 / 120.33 */
+  display: block;
 }
 
-/* On the brand gradient the maroon square would vanish into the background,
-   so it sits on a white chip — the same move every bank makes when its mark
-   meets its own colour. */
-.pnb-mark--on-dark {
+.brand-mark--on-dark {
   background-color: #fff;
-  box-shadow: 0 0 0 3px #fff;
-  border-radius: 20%;
+  border-radius: 22%;
+  padding: calc(var(--mark) * 0.1);
+  box-shadow: 0 0 0 2px #fff;
 }
 
 /* -------------------------------------------------- touch (Fitts's law)
