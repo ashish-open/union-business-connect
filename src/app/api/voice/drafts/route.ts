@@ -11,7 +11,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { callLive, listDrafts } from "@/lib/voice/store";
+import { callLive, hydrate, listDrafts } from "@/lib/voice/store";
 
 export const runtime = "nodejs";
 export const preferredRegion = "bom1";
@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   // Without it, a failed fetch renders as an empty queue and the user concludes
   // nothing needs them — which is the trust failure this whole surface exists to
   // avoid. See 04_V2_IMPROVEMENT_BACKLOG.md R1.
+  await hydrate();
   return NextResponse.json({
     ok: true,
     drafts: listDrafts(entityId),

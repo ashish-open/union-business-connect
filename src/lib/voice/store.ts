@@ -18,6 +18,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { kvGet, kvSet } from "./kv";
 import type { DraftKind, SlotValue } from "./slots";
 import { executable } from "./slots";
 
@@ -187,4 +188,47 @@ export function callLive(entityId: string, now = Date.now()): boolean {
 export function resetStore(): void {
   drafts.clear();
   liveCalls.clear();
+}
+
+/* ------------------------------------------------------------------ */
+/* Sharing the two maps across serverless instances                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * The maps above stay synchronous, and the sharing happens at the request
+ * boundary instead: hydrate on the way in, persist on the way out.
+ *
+ * The alternative was making every store function async, which would have
+ * rippled into 59 probe assertions that call them directly — a large, risky
+ * edit to make a storage decision visible in places that do not care about one.
+ * Two awaits in the request wrapper cost the same and change nothing else.
+ *
+ * The read-modify-write is not atomic. Two callers drafting in the same second
+ * could lose one write. Acceptable here: a business has one phone line, and the
+ * alternative is per-draft keys plus an index, which is more moving parts than
+ * this earns.
+ */
+const DRAFTS_KEY = "voice:drafts:v1";
+const LIVE_KEY = "voice:live:v1";
+
+export async function hydrate(): Promise<void> {
+  const [d, l] = await Promise.all([
+    kvGet<Record<string, Draft>>(DRAFTS_KEY),
+    kvGet<Record<string, { entityId: string; startedAt: number }>>(LIVE_KEY),
+  ]);
+  if (d) {
+    drafts.clear();
+    for (const [k, v] of Object.entries(d)) drafts.set(k, v);
+  }
+  if (l) {
+    liveCalls.clear();
+    for (const [k, v] of Object.entries(l)) liveCalls.set(k, v);
+  }
+}
+
+export async function persist(): Promise<void> {
+  await Promise.all([
+    kvSet(DRAFTS_KEY, Object.fromEntries(drafts)),
+    kvSet(LIVE_KEY, Object.fromEntries(liveCalls)),
+  ]);
 }

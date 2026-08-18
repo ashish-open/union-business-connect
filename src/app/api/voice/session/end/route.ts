@@ -15,7 +15,7 @@ import type { NextRequest } from "next/server";
 import { authenticate } from "@/lib/voice/auth";
 import { logTool, ok, refuse } from "@/lib/voice/respond";
 import { verifySession } from "@/lib/voice/session";
-import { markCallEnded } from "@/lib/voice/store";
+import { hydrate, markCallEnded, persist } from "@/lib/voice/store";
 
 export const runtime = "nodejs";
 export const preferredRegion = "bom1";
@@ -56,7 +56,9 @@ export async function POST(req: NextRequest) {
   // of a real call is worse than accepting an unverified one at this stage.
   const session = verifySession(body.session_token, callId);
 
+  await hydrate();
   markCallEnded(callId);
+  await persist();
 
   logTool({
     tool: "session_end",

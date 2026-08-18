@@ -19,7 +19,7 @@ import { allowedTools, autonomyCeiling, killSwitchOn } from "@/lib/voice/policy"
 import { resolveCaller } from "@/lib/voice/registry";
 import { logTool, ok, refuse } from "@/lib/voice/respond";
 import { mintSession } from "@/lib/voice/session";
-import { markCallStarted } from "@/lib/voice/store";
+import { hydrate, markCallStarted, persist } from "@/lib/voice/store";
 
 export const runtime = "nodejs";
 export const preferredRegion = "bom1"; // India-only data. FOUNDATION §0.
@@ -144,7 +144,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Lets the app show the verification code while, and only while, a call runs.
+  await hydrate();
   markCallStarted(callId, caller.entityId);
+  await persist();
 
   logTool({
     tool: "session_start",

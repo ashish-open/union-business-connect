@@ -16,6 +16,7 @@ import { authenticate } from "./auth";
 import { refusalFor } from "./policy";
 import { logTool, ok, refuse } from "./respond";
 import { verifySession } from "./session";
+import { hydrate, persist } from "./store";
 import type { SessionClaims, ToolName, ToolRequest } from "./types";
 
 /**
@@ -214,12 +215,16 @@ export function tool<A = Record<string, unknown>>(
     }
 
     try {
+      // Shared state in, shared state out. Every tool that touches a draft or a
+      // live call gets this for free, so no route has to remember it.
+      await hydrate();
       const res = await fn({
         claims,
         args: toolArgs<A>(body as unknown as Record<string, unknown>),
         callId,
         idempotencyKey: body.idempotency_key,
       });
+      await persist();
       done("ok", undefined, { ...meta, args: body.args as Record<string, unknown> });
       return res;
     } catch (err) {

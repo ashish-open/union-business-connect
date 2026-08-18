@@ -12,7 +12,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { editDraft, execute, getDraft, reject } from "@/lib/voice/store";
+import { editDraft, execute, getDraft, hydrate, persist, reject } from "@/lib/voice/store";
 
 export const runtime = "nodejs";
 export const preferredRegion = "bom1";
@@ -34,6 +34,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ ref: strin
     return NextResponse.json({ ok: false, reason: "bad_json" }, { status: 400 });
   }
 
+  // The screen acts on a draft the phone created, possibly on another instance.
+  await hydrate();
+
   if (!getDraft(ref)) {
     return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
   }
@@ -41,6 +44,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ ref: strin
   if (body.op === "edit") {
     if (!body.key) return NextResponse.json({ ok: false, reason: "key required" }, { status: 400 });
     const d = editDraft(ref, body.key, body.value ?? "");
+    await persist();
     return d
       ? NextResponse.json({ ok: true, draft: d })
       : NextResponse.json({ ok: false, reason: "already_executed" }, { status: 409 });
@@ -48,6 +52,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ ref: strin
 
   if (body.op === "execute") {
     const d = execute(ref, body.executedAs ?? "record");
+    await persist();
     // 409 rather than an error: the usual cause is a second click, and the first
     // one succeeded. The client treats this as "already done", not as a failure.
     return d
@@ -56,6 +61,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ ref: strin
   }
 
   const d = reject(ref);
+  await persist();
   return d
     ? NextResponse.json({ ok: true, draft: d })
     : NextResponse.json({ ok: false, reason: "already_executed" }, { status: 409 });
