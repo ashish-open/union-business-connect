@@ -46,16 +46,25 @@
   --brand-grad-a: #0078c0;
   --brand-grad-b: #00569b;
 
-  /* The sign-in aurora. Fixed in both themes — it is a lit brand surface, not
-     a page, and it is white-text-on-dark either way. Tokens rather than
-     literals because this is the loudest colour in the product and the next
-     tenant must not have to find it inside a component. The third light is
-     the bank's second colour at 13%: Union Bank uses red as punctuation, and
-     an aurora glow is exactly that. */
-  --hero-base: #04203a;
-  --hero-glow-1: #0f6fb8;
-  --hero-glow-2: #00447c;
-  --hero-accent: #e31e24;
+  /* The sign-in aurora — the loudest colour in the product, and the reason it
+     is tokenised: the next tenant must not have to find it inside a component.
+     The third light is the bank's second colour: Union Bank uses red as
+     punctuation, and an aurora glow is exactly that.
+     
+     It follows the theme rather than being pinned dark. The panel used to be
+     a deep aurora in both, with white text hardcoded over it — which was fine
+     while dark was what everyone saw, and wrong the moment light became the
+     default. So light gets a pale wash of the same colours and the copy on it
+     moves to the ink tokens, which means it is legible either way and nobody
+     has to remember to keep two sets of text colours in step.
+
+     Alpha is baked into the glow tokens instead of living in an opacity class
+     on the element. A wash needs roughly a fifth of the strength an aurora
+     does, and that difference has to be able to change with the theme. */
+  --hero-base: #f4f8fd;
+  --hero-glow-1: rgb(0 120 192 / 0.22);
+  --hero-glow-2: rgb(0 86 155 / 0.16);
+  --hero-accent: rgb(227 30 36 / 0.10);
   --ring: rgb(0 86 155 / 0.16);
 
   /* semantic */
@@ -139,6 +148,11 @@
   --gold-soft: #2c2414;
   --ring: rgb(111 182 232 / 0.24);
 
+  --hero-base: #04203a;
+  --hero-glow-1: rgb(15 111 184 / 0.50);
+  --hero-glow-2: rgb(0 68 124 / 0.70);
+  --hero-accent: rgb(227 30 36 / 0.13);
+
   --pos: #4cc38a;
   --pos-soft: #132a1e;
   --warn: #e2b33c;
@@ -187,6 +201,11 @@
     --gold: #d2a54b;
     --gold-soft: #2c2414;
     --ring: rgb(111 182 232 / 0.24);
+
+    --hero-base: #04203a;
+    --hero-glow-1: rgb(15 111 184 / 0.50);
+    --hero-glow-2: rgb(0 68 124 / 0.70);
+    --hero-accent: rgb(227 30 36 / 0.13);
 
     --pos: #4cc38a;
     --pos-soft: #132a1e;
@@ -297,11 +316,26 @@ body {
   display: block;
 }
 
-.brand-mark--on-dark {
-  background-color: #fff;
+/* On the sign-in hero the panel follows the theme, so the mark's backing has
+   to as well. Against the pale wash the device needs no help. Against the
+   dark aurora a mark in the bank's own colour would sink into it, so there —
+   and only there — it sits on a white chip. */
+.brand-mark--on-hero {
   border-radius: 22%;
+}
+
+[data-theme="dark"] .brand-mark--on-hero {
+  background-color: #fff;
   padding: calc(var(--mark) * 0.1);
   box-shadow: 0 0 0 2px #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-mark--on-hero {
+    background-color: #fff;
+    padding: calc(var(--mark) * 0.1);
+    box-shadow: 0 0 0 2px #fff;
+  }
 }
 
 /* -------------------------------------------------- touch (Fitts's law)

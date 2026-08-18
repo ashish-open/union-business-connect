@@ -341,10 +341,12 @@ export const brand = {
 `bankShort: "SBI"` is correct here — unlike UBI, "SBI" *is* the customer-facing
 short form and reads naturally in running copy.
 
-**Naming question for the client:** SBI's business digital brand is **YONO
-Business**. "SBI Business Connect" may need to become "YONO Business Connect",
-or the product may need to sit inside YONO entirely. Worth asking before the
-first demo — it changes `productName` and possibly the whole nav framing.
+**Product name — decided.** SBI's business digital brand is **YONO Business**,
+and `productName` is now `"YONO Business"`, not `"Business Connect"`. A second
+product name beside YONO would be a bank asking its customers to learn two.
+This flows everywhere the name appears without further edits — the lockup, the
+tab title, the consent line ("you're allowing YONO Business to:"), and the
+footer of all three printable documents — because it was always one constant.
 
 ### 4.4 Other SBI-specific values
 
@@ -440,7 +442,7 @@ carries PNB-specific commit messages into a client repo.
 | # | Item | Owner |
 |---|---|---|
 | O1 | **SBI: corporate indigo or onlinesbi teal?** (§4.1) Highest-cost item. | Client |
-| O2 | **SBI: "Business Connect" or "YONO Business Connect"?** (§4.3) | Client |
+| ~~O2~~ | ~~SBI product name~~ — **decided: YONO Business** (§4.3) | ✅ |
 | O3 | UBI official logo as SVG (§5.1) | Bank |
 | O4 | SBI official logo as SVG | Bank |
 | O5 | Keep Inter, or adopt Poppins (UBI) / Open Sans (SBI)? Recommend Inter. | Design + client |
@@ -463,6 +465,7 @@ ESLint, and all six probes — with zero PNB references remaining in `src/`.
 | `--info` | violet `#5145b8` (moved off blue) | SBI cyan `#0b6f96` |
 | `--gold` | amber, unchanged (semantic) | SBI yellow `#8a6a00` |
 | Aurora | navy with a red glow | indigo with a yellow glow |
+| Product name | Business Connect | **YONO Business** |
 | Mark | `UnionMark.tsx` | `SbiMark.tsx` |
 | IFSC | `UBIN` | `SBIN` |
 | Pay link | `unionbank.bc` | `sbi.bc` |
@@ -506,3 +509,63 @@ Both are still traces. §7 O3/O4 stand: ask each bank for the official vector.
 - SBI's primary button is a deep indigo on a dark page in dark mode, so it
   recedes more than PNB's maroon did. `--brand-grad-*` is fixed in both themes
   by design; lifting it for dark is a one-line change if the client asks.
+
+---
+
+## 9. Second pass — light by default, and a hero that follows it
+
+Three changes after the first review.
+
+### 9.1 The product ships light
+
+`lib/theme.ts` used to default to `"system"`, which is why the same account
+looked dark on one machine and light on another. It now defaults to **light**.
+A bank's product has a house appearance, the screens are dense tables of
+money, and the demo is given on whatever laptop is in the room — "it looked
+different in the meeting" should not be something that can happen.
+
+System is still on the menu. It is a choice now, not the silent default.
+
+One consequence worth naming, because it is the kind of thing that breaks
+quietly: since absence-of-key now means light, `"system"` has to be **stored**
+rather than expressed by clearing the key. `setTheme` writes all three values,
+and the inline `themeScript` — which runs before first paint so there is no
+flash — reads them back the same way. Its `catch` falls through to light too:
+in a browser with storage blocked, the default still has to be the default.
+
+Verified with the OS set to dark: no stored preference gives
+`data-theme="light"`, `colorScheme: light`, page background `#f6f7f9`.
+
+### 9.2 The sign-in hero follows the theme
+
+The hero was a deep aurora pinned in both themes with **white text hardcoded
+over it**. That was defensible while dark was what everyone saw. The moment
+light became the default it was a dark slab bolted to a white page.
+
+It is now theme-aware: a pale wash of the same brand colours in light, the
+deep aurora in dark, and the copy moved from `text-white` / `text-white/65` /
+`text-white/50` to the `--ink` tokens — so it is legible either way and nobody
+has to keep two sets of text colours in step.
+
+Two details that make it hold together:
+
+- **Alpha moved into the tokens.** The glow opacities used to be
+  `opacity-50` / `opacity-70` / `opacity-[0.13]` classes on the elements. Those
+  are tuned for a dark base; a wash needs about a fifth of the strength. Since
+  the difference has to change with the theme and a Tailwind class cannot, the
+  alpha is now baked into `--hero-glow-*` and the classes are gone.
+- **The mark's white chip is now conditional on the theme, not on a prop.**
+  `BrandMark`'s `onDark` became `onHero`, and it no longer controls text
+  colour at all — only whether the device gets a chip, which CSS decides. On
+  the pale wash the device needs no help; on the dark aurora a mark in the
+  bank's own colour would sink into it.
+
+SBI's yellow glow shipped at `0.30` and read as a muddy tan where it crossed
+the lavender. It is at `0.16`.
+
+### 9.3 Still true
+
+`npm run check` passes on both — tsc, ESLint, six probes. Both sign-in pages
+were driven in light and dark, and the full SBI journey (phone → OTP → entity
+→ consent → Today) was run to confirm "YONO Business" reads correctly in
+running copy, not just in the lockup.

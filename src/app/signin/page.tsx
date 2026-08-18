@@ -118,26 +118,27 @@ export default function SignInPage() {
 /* ------------------------------------------------------------------ */
 
 // The brand moment: an aurora in the bank's colours with a real product
-// preview —
-// built from the same StatementLine component the app ships, not a mock.
+// preview — built from the same StatementLine component the app ships, not a
+// mock. The panel follows the theme (see --hero-* in globals.css): a pale
+// wash by default, the deep aurora for anyone who chose dark.
 function BrandPanel() {
   return (
     <aside className="relative hidden overflow-hidden bg-(--hero-base) lg:flex lg:flex-col lg:justify-between lg:p-10">
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="animate-drift absolute -left-1/4 -top-1/3 h-4/5 w-4/5 rounded-full bg-(--hero-glow-1) opacity-50 blur-[110px]" />
-        <div className="animate-drift absolute -bottom-1/3 -right-1/4 h-3/4 w-3/4 rounded-full bg-(--hero-glow-2) opacity-70 blur-[100px] [animation-delay:-7s]" />
-        <div className="animate-drift absolute right-[8%] top-[12%] h-2/5 w-2/5 rounded-full bg-(--hero-accent) opacity-[0.13] blur-[90px] [animation-delay:-3s]" />
+        <div className="animate-drift absolute -left-1/4 -top-1/3 h-4/5 w-4/5 rounded-full bg-(--hero-glow-1) blur-[110px]" />
+        <div className="animate-drift absolute -bottom-1/3 -right-1/4 h-3/4 w-3/4 rounded-full bg-(--hero-glow-2) blur-[100px] [animation-delay:-7s]" />
+        <div className="animate-drift absolute right-[8%] top-[12%] h-2/5 w-2/5 rounded-full bg-(--hero-accent) blur-[90px] [animation-delay:-3s]" />
       </div>
 
       <div className="relative">
-        <BrandMark size="lg" onDark />
+        <BrandMark size="lg" onHero />
       </div>
 
       <div className="relative max-w-md">
-        <h2 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-white">
+        <h2 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.02em] text-ink">
           Banking that explains your money back to you.
         </h2>
-        <p className="mt-3 text-[14px] leading-6 text-white/65">
+        <p className="mt-3 text-[14px] leading-6 text-ink-2">
           {`Sign in, and within a minute ${brand.productName} reads your statement and tells you something you didn't know — before you set up anything.`}
         </p>
 
@@ -173,7 +174,7 @@ function BrandPanel() {
         </div>
       </div>
 
-      <p className="relative text-[12.5px] text-white/50">
+      <p className="relative text-[12.5px] text-ink-3">
         On the trusted rails of {brand.bankName}. Free for your business, forever.
       </p>
     </aside>

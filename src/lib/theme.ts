@@ -4,10 +4,20 @@
 //
 // The palette always had three states — `globals.css` keys dark off
 // `[data-theme="dark"]`, light off `[data-theme="light"]`, and falls through
-// to `prefers-color-scheme` when neither is set — but nothing ever wrote the
-// attribute. So every browser silently followed its own OS setting, which is
-// why the same account looked dark on one machine and light on another. That
-// is not a bug in the palette; it is a missing choice.
+// to `prefers-color-scheme` when neither is set — but for a long time nothing
+// wrote the attribute, so every browser silently followed its own OS setting
+// and the same account looked dark on one machine and light on another.
+//
+// It now defaults to LIGHT rather than to the OS. A bank's product has a
+// house appearance, and light is it: the screens are dense tables of money,
+// the demo is given on whatever laptop is in the room, and "it looked
+// different in the meeting" is not a thing that should be able to happen.
+// System is still on the menu for anyone who wants it — it is a choice now,
+// not the silent default.
+//
+// One consequence worth naming: because absence-of-key means light, "system"
+// has to be STORED rather than expressed by clearing the key. `setTheme`
+// writes all three values.
 //
 // The preference is deliberately NOT in the Zustand store: that persists to
 // sessionStorage and is keyed to a signed-in session, and "I prefer dark" is
@@ -20,14 +30,19 @@ export type Theme = "system" | "light" | "dark";
 
 export const THEME_KEY = "bc-theme";
 
+export const DEFAULT_THEME: Theme = "light";
+
 /**
  * Runs in <head>, before first paint, so the page never flashes the wrong
  * palette. Kept as a string because it must not wait for a bundle.
  *
  * `colorScheme` is set too — without it the native date pickers in the
  * journal and document editors, and the scrollbars, stay light on a dark page.
+ *
+ * The catch falls through to light rather than doing nothing: in a browser
+ * with storage blocked, the default has to still be the default.
  */
-export const themeScript = `try{var t=localStorage.getItem(${JSON.stringify(THEME_KEY)});var d=document.documentElement;if(t==="light"||t==="dark"){d.setAttribute("data-theme",t);d.style.colorScheme=t}else{d.style.colorScheme="light dark"}}catch(e){}`;
+export const themeScript = `try{var t=localStorage.getItem(${JSON.stringify(THEME_KEY)});var d=document.documentElement;if(t==="system"){d.removeAttribute("data-theme");d.style.colorScheme="light dark"}else{var m=t==="dark"?"dark":"light";d.setAttribute("data-theme",m);d.style.colorScheme=m}}catch(e){document.documentElement.setAttribute("data-theme","light")}`;
 
 function apply(theme: Theme) {
   const el = document.documentElement;
@@ -43,9 +58,10 @@ function apply(theme: Theme) {
 function read(): Theme {
   try {
     const t = localStorage.getItem(THEME_KEY);
-    return t === "light" || t === "dark" ? t : "system";
+    // Anything unrecognised — absent, stale, hand-edited — is the default.
+    return t === "dark" || t === "light" || t === "system" ? t : DEFAULT_THEME;
   } catch {
-    return "system";
+    return DEFAULT_THEME;
   }
 }
 
@@ -69,8 +85,9 @@ function subscribe(fn: () => void) {
 
 export function setTheme(theme: Theme) {
   try {
-    if (theme === "system") localStorage.removeItem(THEME_KEY);
-    else localStorage.setItem(THEME_KEY, theme);
+    // All three are written. See the note above: clearing the key would mean
+    // light, so "system" cannot be expressed by absence.
+    localStorage.setItem(THEME_KEY, theme);
   } catch {
     /* private mode — the choice still applies to this page */
   }
@@ -78,7 +95,7 @@ export function setTheme(theme: Theme) {
   listeners.forEach((fn) => fn());
 }
 
-/** The current choice — "system" on the server, so SSR matches frame one. */
+/** The current choice — the default on the server, so SSR matches frame one. */
 export function useTheme(): Theme {
-  return useSyncExternalStore(subscribe, read, () => "system");
+  return useSyncExternalStore(subscribe, read, () => DEFAULT_THEME);
 }

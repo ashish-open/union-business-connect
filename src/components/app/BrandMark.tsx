@@ -18,20 +18,20 @@ const MARK: Record<"sm" | "md" | "lg", number> = { sm: 26, md: 30, lg: 40 };
 export function BrandMark({
   size = "md",
   withName = true,
-  /** On the brand gradient: white wordmark, and the device gets a white chip. */
-  onDark,
+  /** On the sign-in hero, where the device may need a chip. See globals.css. */
+  onHero,
   /** Say which bank. The rail does not — the device already says it. */
   withBank = true,
 }: {
   size?: "sm" | "md" | "lg";
   withName?: boolean;
-  onDark?: boolean;
+  onHero?: boolean;
   withBank?: boolean;
 }) {
   return (
     <span className="flex items-center gap-2.5">
       <span
-        className={cn("brand-mark", onDark && "brand-mark--on-dark")}
+        className={cn("brand-mark", onHero && "brand-mark--on-hero")}
         style={{ "--mark": `${MARK[size]}px` } as React.CSSProperties}
       >
         <UnionMark title={`${brand.bankShort} ${brand.productName}`} />
@@ -40,8 +40,7 @@ export function BrandMark({
         <span className="min-w-0 leading-none">
           <span
             className={cn(
-              "block truncate font-semibold tracking-[-0.01em]",
-              onDark ? "text-white" : "text-ink",
+              "block truncate font-semibold tracking-[-0.01em] text-ink",
               size === "lg" ? "text-[17px]" : "text-[13.5px]",
             )}
           >
@@ -50,8 +49,7 @@ export function BrandMark({
           {withBank && (
             <span
               className={cn(
-                "block truncate",
-                onDark ? "text-white/60" : "text-ink-3",
+                "block truncate text-ink-3",
                 size === "lg" ? "mt-1.5 text-xs" : "mt-1 text-[10.5px]",
               )}
             >

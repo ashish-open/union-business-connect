@@ -2,10 +2,11 @@
 
 // Three states, because there are three.
 //
-// A two-way toggle would have to drop "System", and System is what everyone
-// was silently on — it is the reason the same account looked dark on one
-// machine and light on another. Taking it away to save a segment would
-// remove the only option that keeps following the OS at dusk.
+// A two-way toggle would have to drop "System", and System is the only option
+// that keeps following the OS at dusk. It is no longer the default — the
+// product ships light, see `lib/theme.ts` — but "default" and "unavailable"
+// are different things, and someone who wants their laptop's setting honoured
+// should be able to say so.
 //
 // Selection is a surface change, never a hue (law B4): the chosen segment
 // gets a raised white chip, so the accent stays spent on meaning.
