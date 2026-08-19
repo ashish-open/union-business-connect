@@ -16,7 +16,7 @@ import { authenticate } from "./auth";
 import { refusalFor } from "./policy";
 import { logTool, ok, refuse } from "./respond";
 import { verifySession } from "./session";
-import { hydrate, persist } from "./store";
+import { callVerified, hydrate, persist, stickyVerifyOn } from "./store";
 import type { SessionClaims, ToolName, ToolRequest } from "./types";
 
 /**
@@ -280,14 +280,55 @@ export function tool<A = Record<string, unknown>>(
     }
 
     const { claims } = session;
+
+    /*
+     * Shared state in. Moved above the policy check because the sticky-verify
+     * record below lives in the store, and a policy decision made before the
+     * store was read would be made on stale state. `hydrate` cannot throw: kv.ts
+     * catches its own failures and falls back to process memory.
+     */
+    await hydrate();
+
+    /*
+     * The fallback for a platform that will not echo the upgraded token back.
+     *
+     * Auth level is normally a claim sealed in the token, and that stays the
+     * default. But `verify_identity` re-mints the token, and if the agent's
+     * save-reply mapping does not write it back, the caller is told they are
+     * verified and every read still refuses — indistinguishable, from the
+     * caller's side, from the product being broken.
+     *
+     * `session_start` seals its own callId INTO the token, so even the stale
+     * cli_only token the agent keeps sending identifies the call. That is the
+     * hook this uses. It is off unless VOICE_STICKY_VERIFY=1, and every use is
+     * logged, because trading a signed claim for server state is a real
+     * weakening and must not be something anyone discovers later in a log.
+     */
+    let authLevel = claims.authLevel;
+    if (stickyVerifyOn() && authLevel !== "verified" && callVerified(claims.callId)) {
+      console.warn(
+        JSON.stringify({
+          evt: "voice_sticky_verify_used",
+          at: new Date().toISOString(),
+          tool: name,
+          entityId: claims.entityId,
+          user: claims.user,
+          detail:
+            "VOICE_STICKY_VERIFY=1 — this call verified earlier and the token was never upgraded",
+        }),
+      );
+      authLevel = "verified";
+    }
+    const effective = authLevel === claims.authLevel ? claims : { ...claims, authLevel };
+
     const meta = {
       callId,
       entityId: claims.entityId,
       role: claims.role,
-      authLevel: claims.authLevel,
+      authLevel,
     };
 
-    const denial = refusalFor(name, { role: claims.role, authLevel: claims.authLevel });
+    const denial = refusalFor(name, { role: claims.role, authLevel });
     if (denial) {
       // Refusals are logged as first-class events, not filtered out —
       // EXPERIENCE_SPEC §10a is explicit that the audit records what the agent
@@ -297,11 +338,9 @@ export function tool<A = Record<string, unknown>>(
     }
 
     try {
-      // Shared state in, shared state out. Every tool that touches a draft or a
-      // live call gets this for free, so no route has to remember it.
-      await hydrate();
+      // Shared state out. The matching hydrate happens above, before policy.
       const res = await fn({
-        claims,
+        claims: effective,
         args: toolArgs<A>(body as unknown as Record<string, unknown>),
         callId,
         idempotencyKey: body.idempotency_key,

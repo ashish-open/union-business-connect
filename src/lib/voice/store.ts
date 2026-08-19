@@ -184,10 +184,61 @@ export function callLive(entityId: string, now = Date.now()): boolean {
   return false;
 }
 
+/* ------------------------------------------------------------------ */
+/* Verified calls — the fallback when the platform will not echo a token */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Auth level normally travels as a claim sealed inside the session token, and
+ * that is the better design: nothing server-side has to be trusted or kept, and
+ * a token cannot be upgraded by anything except the route that mints it.
+ *
+ * It has one dependency we do not control. `verify_identity` re-mints the token
+ * and returns it, and the agent platform has to write that new token back over
+ * its own variable before the next tool call. When that mapping does not land —
+ * six attempts across one night, with a 24-second gap proving it was not a race
+ * — verification succeeds, the caller is told they are verified, and every
+ * subsequent read refuses. From the caller's side the product is simply broken.
+ *
+ * So this records the verification against the callId that `session_start`
+ * minted, which is sealed inside the token the agent is already sending. Even
+ * an un-upgraded token therefore carries enough to find the record.
+ *
+ * The trade is real and is not hidden: auth level moves from a signed claim to
+ * server state, so anything that can replay a cli_only token from a verified
+ * call within its 30-minute life is verified too. That is why it is OFF unless
+ * VOICE_STICKY_VERIFY=1, why every use is logged, and why the token path stays
+ * the default. Turn it on to get through a demo the console is blocking; turn
+ * it off once the mapping is proven.
+ */
+const verifiedCalls = new Map<string, number>();
+
+export function stickyVerifyOn(): boolean {
+  return process.env.VOICE_STICKY_VERIFY === "1";
+}
+
+export function markCallVerified(callId: string, now = Date.now()): void {
+  if (!callId) return;
+  verifiedCalls.set(callId, now);
+}
+
+/** Bounded by the same ceiling as a live call, so a record cannot outlive one. */
+export function callVerified(callId: string, now = Date.now()): boolean {
+  if (!callId) return false;
+  const at = verifiedCalls.get(callId);
+  if (at === undefined) return false;
+  if (now - at > MAX_CALL_MS) {
+    verifiedCalls.delete(callId);
+    return false;
+  }
+  return true;
+}
+
 /** Test seam. */
 export function resetStore(): void {
   drafts.clear();
   liveCalls.clear();
+  verifiedCalls.clear();
 }
 
 /* ------------------------------------------------------------------ */
@@ -210,11 +261,13 @@ export function resetStore(): void {
  */
 const DRAFTS_KEY = "voice:drafts:v1";
 const LIVE_KEY = "voice:live:v1";
+const VERIFIED_KEY = "voice:verified:v1";
 
 export async function hydrate(): Promise<void> {
-  const [d, l] = await Promise.all([
+  const [d, l, v] = await Promise.all([
     kvGet<Record<string, Draft>>(DRAFTS_KEY),
     kvGet<Record<string, { entityId: string; startedAt: number }>>(LIVE_KEY),
+    kvGet<Record<string, number>>(VERIFIED_KEY),
   ]);
   if (d) {
     drafts.clear();
@@ -222,7 +275,11 @@ export async function hydrate(): Promise<void> {
   }
   if (l) {
     liveCalls.clear();
-    for (const [k, v] of Object.entries(l)) liveCalls.set(k, v);
+    for (const [k, x] of Object.entries(l)) liveCalls.set(k, x);
+  }
+  if (v) {
+    verifiedCalls.clear();
+    for (const [k, x] of Object.entries(v)) verifiedCalls.set(k, x);
   }
 }
 
@@ -230,5 +287,6 @@ export async function persist(): Promise<void> {
   await Promise.all([
     kvSet(DRAFTS_KEY, Object.fromEntries(drafts)),
     kvSet(LIVE_KEY, Object.fromEntries(liveCalls)),
+    kvSet(VERIFIED_KEY, Object.fromEntries(verifiedCalls)),
   ]);
 }

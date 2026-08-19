@@ -15,6 +15,7 @@ import { verifyOtp } from "@/lib/voice/otp";
 import { isLocked, recordAttempt, verifyPin } from "@/lib/voice/pin";
 import { allowedTools } from "@/lib/voice/policy";
 import { upgradeSession } from "@/lib/voice/session";
+import { markCallVerified } from "@/lib/voice/store";
 
 export const runtime = "nodejs";
 export const preferredRegion = "bom1";
@@ -126,6 +127,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
       );
     }
 
+    markCallVerified(claims.callId);
     const token = upgradeSession(claims);
     return ok(
       "Thank you, you're verified. What can I help with?",
@@ -164,6 +166,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
         detail: "VOICE_DEMO_PIN=any — verified without checking the code",
       }),
     );
+    markCallVerified(claims.callId);
     const token = upgradeSession(claims);
     return ok(
       "Thank you, you're verified. What can I help with?",
@@ -257,6 +260,14 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
       } left.`,
     );
   }
+
+  /*
+   * Recorded against the callId sealed in the token, not `body.call_id`, which
+   * the tools do not send. This is what VOICE_STICKY_VERIFY reads; with the flag
+   * off it is written and never consulted, which is deliberate — the record has
+   * to already exist for the flag to be worth flipping mid-demo.
+   */
+  markCallVerified(claims.callId);
 
   // Re-minted rather than mutated: there is no session store, and the old
   // lower-privilege token stays valid until it expires while conferring nothing.
