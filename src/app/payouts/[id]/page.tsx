@@ -23,9 +23,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
-import { paymentById, type PaymentEvent } from "@/lib/payments";
+import { Timeline } from "@/components/ui/Timeline";
+import { paymentById } from "@/lib/payments";
 import { fmtDateFull } from "@/lib/format";
-import { cn } from "@/lib/cn";
 import { useEntity, useStore } from "@/store/useStore";
 
 export default function PaymentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -122,11 +122,13 @@ export default function PaymentPage({ params }: { params: Promise<{ id: string }
 
           <h2 className="mt-5 text-[13px] font-semibold text-ink">What happened</h2>
           <Card className="mt-2.5">
-            <ol className="space-y-0">
-              {payment.timeline.map((e, i) => (
-                <Event key={e.label} event={e} last={i === payment.timeline.length - 1} />
-              ))}
-            </ol>
+            <Timeline
+              steps={payment.timeline.map((e) => ({
+                label: e.label,
+                detail: e.detail,
+                state: e.tone,
+              }))}
+            />
           </Card>
         </div>
 
@@ -208,28 +210,5 @@ export default function PaymentPage({ params }: { params: Promise<{ id: string }
         </aside>
       </div>
     </AppShell>
-  );
-}
-
-function Event({ event, last }: { event: PaymentEvent; last: boolean }) {
-  return (
-    <li className="flex gap-3">
-      <span className="flex flex-col items-center">
-        <span
-          className={cn(
-            "mt-1 h-2 w-2 shrink-0 rounded-full",
-            event.tone === "bad" ? "bg-neg" : event.tone === "now" ? "bg-info" : "bg-pos",
-          )}
-        />
-        {/* The rail between the dots, so the sequence reads as one thread. */}
-        {!last && <span className="my-1 w-px flex-1 bg-border" />}
-      </span>
-      <span className={cn("min-w-0 flex-1", last ? "pb-0" : "pb-4")}>
-        <span className="block text-[13px] text-ink">{event.label}</span>
-        {event.detail && (
-          <span className="mt-0.5 block text-[11.5px] leading-4 text-ink-3">{event.detail}</span>
-        )}
-      </span>
-    </li>
   );
 }

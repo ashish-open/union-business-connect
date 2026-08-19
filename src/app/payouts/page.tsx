@@ -19,6 +19,7 @@ import { SheetFooter } from "@/components/ui/SheetFooter";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Money } from "@/components/ui/Money";
+import { ShareBar } from "@/components/ui/ShareBar";
 import { brand } from "@/config/brand";
 import { ANCHOR_DATE, type PendingApproval } from "@/data/seed";
 import {
@@ -93,6 +94,13 @@ export default function PayoutsPage() {
     return [...added, ...derived];
   }, [entity, sessionPayees]);
   const recent = useMemo(() => (entity ? recentPayments(entity) : []), [entity]);
+  /* The denominator for the share bars: everything that has gone to payees, not
+     everything that has left the account. A share of the wrong total is a
+     smaller lie than no share, but it is still one. */
+  const paidAcrossPayees = useMemo(
+    () => payees.reduce((sum, p) => sum + p.totalPaid, 0),
+    [payees],
+  );
 
   /*
    * The deep link resolves against the payee list, so "send it again" lands on
@@ -315,6 +323,11 @@ export default function PayoutsPage() {
                     {formatINR(p.totalPaid, { compact: true })} over {p.payments} payments · last{" "}
                     {fmtDate(p.lastPaid)}
                   </p>
+                  {/* The list is ranked by spend, which says who is biggest and
+                      not by how much. Here the first payee is a third of
+                      everything that leaves — visible as a length, not a sum
+                      the reader has to do. */}
+                  <ShareBar value={p.totalPaid} total={paidAcrossPayees} />
                 </div>
                 <Badge variant="outline">
                   <Check size={11} strokeWidth={2.5} /> Verified

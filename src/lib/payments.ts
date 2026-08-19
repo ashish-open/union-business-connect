@@ -4,6 +4,7 @@
 
 import { ANCHOR_DATE, Entity } from "@/data/seed";
 import { addDays, fmtDate } from "@/lib/format";
+import type { TimelineState } from "@/components/ui/Timeline";
 import { resolveCounterparty } from "@/lib/analysis";
 
 export interface Payee {
@@ -116,8 +117,11 @@ export function modeFor(amount: number): {
 export interface PaymentEvent {
   label: string;
   detail?: string;
-  /** "done" is history, "now" is where it has got to, "bad" is a return. */
-  tone: "done" | "now" | "bad";
+  /**
+   * Feeds `TimelineState` directly rather than a private vocabulary this file
+   * would then have to map — two names for one state is how they drift.
+   */
+  tone: TimelineState;
 }
 
 export interface PaymentRecord {

@@ -13,6 +13,7 @@ import { addDays, fmtDateFull } from "@/lib/format";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Timeline } from "@/components/ui/Timeline";
 import { Badge } from "@/components/ui/Badge";
 import { BrandMark } from "@/components/app/BrandMark";
 import { brand } from "@/config/brand";
@@ -105,47 +106,14 @@ export default function TrackPage() {
             Nothing is waiting on you except the video call.
           </p>
 
-          {/* honest tracker */}
+          {/* honest tracker — the same `Timeline` the payment record uses.
+              These were two implementations of one thing, and they had already
+              diverged: this one knew about a step still to come, the other could
+              only describe the past. */}
           <Card className="mt-6 !p-4">
-            <ol className="space-y-0">
-              {timeline.map((t, i) => (
-                <li key={t.label} className="relative flex gap-3 pb-5 last:pb-0">
-                  {i < timeline.length - 1 && (
-                    <span
-                      className="absolute left-[10px] top-6 bottom-0 w-px bg-border"
-                      aria-hidden
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "relative z-[1] flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full",
-                      t.state === "done"
-                        ? "bg-pos-soft text-pos"
-                        : t.state === "now"
-                          ? "bg-accent-soft text-accent"
-                          : "border border-border-strong bg-surface",
-                    )}
-                  >
-                    {t.state === "done" ? (
-                      <Check size={12} strokeWidth={3} />
-                    ) : t.state === "now" ? (
-                      <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-soft" />
-                    ) : null}
-                  </span>
-                  <div className="min-w-0">
-                    <p
-                      className={cn(
-                        "text-sm",
-                        t.state === "todo" ? "text-ink-2" : "font-medium text-ink",
-                      )}
-                    >
-                      {t.label}
-                    </p>
-                    <p className="mt-0.5 text-[12.5px] leading-5 text-ink-3">{t.sub}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <Timeline
+              steps={timeline.map((t) => ({ label: t.label, detail: t.sub, state: t.state }))}
+            />
           </Card>
 
           <p className="mt-3 flex items-center gap-2 text-[12.5px] text-ink-3">

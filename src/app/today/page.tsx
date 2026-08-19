@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
+import { RewardRow } from "@/components/ui/RewardRow";
 import { Tone } from "@/lib/analysis";
 import { payable } from "@/lib/balance";
 import { VoiceDraftPanel } from "@/components/today/VoiceDraftPanel";
@@ -42,7 +43,7 @@ import { buildRera, detectRera } from "@/lib/rera";
 import { buildStatement } from "@/lib/statement";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
-import { fmtDate, fmtDateFull, formatINR, maskAccount } from "@/lib/format";
+import { fmtDate, fmtDateFull, formatINR, maskAccount, plural } from "@/lib/format";
 import { ANCHOR_DATE } from "@/data/seed";
 import { useBooks } from "@/lib/useBooks";
 import { channelView } from "@/lib/channelNav";
@@ -298,6 +299,21 @@ export default function TodayPage() {
               />
             ))}
           </Card>
+          {/* Everything on this list that no longer needs you.
+              Resolved rows dim in place and say nothing collectively, so a
+              morning spent clearing six things ended with a screen that looked
+              exactly as busy as when it started. */}
+          {queue.length > 0 && openCount < queue.length && (
+            <RewardRow
+              className="mt-2.5"
+              title={
+                openCount === 0
+                  ? `All ${plural(queue.length, "item")} handled`
+                  : `${queue.length - openCount} of ${queue.length} handled`
+              }
+              detail={openCount === 0 ? "Nothing is waiting on a decision." : undefined}
+            />
+          )}
 
           {/* A failed poll must never render as "nothing needs you" — someone who
               just spoke an invoice would conclude nothing is waiting, which is

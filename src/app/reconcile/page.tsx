@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
+import { RewardRow } from "@/components/ui/RewardRow";
 import { resolveCounterparty } from "@/lib/analysis";
 import { ACCOUNTS } from "@/lib/coa";
 import { docTotals } from "@/lib/docs";
@@ -47,11 +48,12 @@ export default function ReconcilePage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* "These need you" is a promise about the list below it, so it cannot be
             printed when the list is empty — it sat directly above the card that
-            says nothing does. */}
+            says nothing does.
+            The matched count left this line: it was the reward, demoted to grey
+            caption text ABOVE the queue, where it reads as a preamble to the
+            problems. It is a `RewardRow` at the foot now. */}
         <p className="text-[12.5px] text-ink-3">
-          {done
-            ? `${books.matched.byTxn.size} matched on their own.`
-            : `${books.matched.byTxn.size} matched on their own. These need you.`}
+          {done ? "Nothing is waiting on a decision." : "These need you."}
         </p>
         <Button size="sm" variant="secondary" onClick={() => setJournalOpen(true)}>
           <Plus size={13} /> Journal entry
@@ -148,6 +150,16 @@ export default function ReconcilePage() {
               );
             })}
           </Card>
+          {/* What the queue is not asking of you. Two suggestions read as a
+              statement about the books until the forty-one that matched
+              themselves are on the same screen. */}
+          {books.matched.byTxn.size > 0 && (
+            <RewardRow
+              className="mt-2.5"
+              title={`${plural(books.matched.byTxn.size, "line")} matched on their own`}
+              detail="Same party, exact amount, or short by exactly the TDS."
+            />
+          )}
         </section>
       )}
 
