@@ -9,7 +9,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 process.env.VOICE_SESSION_SECRET = "x".repeat(48);
@@ -35,7 +35,8 @@ process.env.VOICE_OTP_SECRET = "o".repeat(40);
 const { normaliseMobile, resolveCaller, resetRegistryCache, registrations } =
   await import("@/lib/voice/registry");
 const { mintSession, verifySession, upgradeSession } = await import("@/lib/voice/session");
-const { allowedTools, canUse, refusalFor } = await import("@/lib/voice/policy");
+const { allowedTools, advertisedTools, canUse, refusalFor, routedTools } =
+  await import("@/lib/voice/policy");
 const { authenticate } = await import("@/lib/voice/auth");
 const { currentPin, verifyPin, recordAttempt, isLocked, clearAttempts } = await import(
   "@/lib/voice/pin"
@@ -657,6 +658,38 @@ check(".env.example documents every variable the voice surface reads", () => {
     [],
     `read by src/lib/voice but absent from .env.example: ${undocumented.join(", ")}`,
   );
+});
+
+check("every advertised tool has a route behind it", () => {
+  // The list in policy.ts is hand-maintained, and a name added there without a
+  // route produces the worst available failure: the agent offers the capability
+  // to a caller, calls it, and gets a 404 mid-sentence. 08 §6 names the seven
+  // that were declared with nothing behind them. This makes that class of drift
+  // fail `npm run check` instead of a call.
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const paths: Record<string, string> = {
+    verify_identity: "verify-identity",
+    request_otp: "request-otp",
+    request_callback: "request-callback",
+    lookup_account_balance: "read/balance",
+    list_transactions: "read/transactions",
+    get_invoices: "read/invoices",
+    get_party_payments: "read/party-payments",
+    list_pending_approvals: "read/pending-approvals",
+    draft_invoice: "draft/invoice",
+    draft_beneficiary: "draft/beneficiary",
+  };
+
+  const missing = routedTools().filter(
+    (t) => !paths[t] || !existsSync(`${root}src/app/api/voice/${paths[t]}/route.ts`),
+  );
+  assert.deepEqual(missing, [], `advertised with no route: ${missing.join(", ")}`);
+
+  // And the reverse: a tool the policy would permit but that is not built must
+  // never reach the agent, whatever its role.
+  const advertised = advertisedTools({ role: "owner", authLevel: "verified" });
+  const unbuilt = advertised.filter((t) => !routedTools().includes(t));
+  assert.deepEqual(unbuilt, [], `handed to the agent but not built: ${unbuilt.join(", ")}`);
 });
 
 console.log(`\n${pass} passed${process.exitCode ? " — with failures above" : ""}\n`);

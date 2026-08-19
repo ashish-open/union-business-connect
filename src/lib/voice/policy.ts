@@ -88,6 +88,47 @@ export function allowedTools({ role, authLevel }: PolicyInput): ToolName[] {
   return tools;
 }
 
+/*
+ * The tools that actually have a route behind them.
+ *
+ * `allowedTools` is the POLICY ceiling — what this caller's role and auth level
+ * would permit. It is deliberately wider than what is built, because policy
+ * should not quietly change every time a route lands. 08 §9.4 says exactly
+ * this: "Do not treat tools_allowed as a build list."
+ *
+ * But the list handed to the agent is not a ceiling, it is a menu. Telling an
+ * agent it may draft a payout when no such endpoint exists produces the one
+ * failure this surface exists to prevent: an offer to a caller that cannot be
+ * honoured, followed by an improvised apology. So the two are separated —
+ * `allowedTools` stays the ceiling and enforces, `advertisedTools` is what the
+ * agent is told.
+ *
+ * Kept in sync by a probe, not by memory: scripts/voice-probe.mts asserts every
+ * name here resolves to a route file, so adding one without building it fails
+ * `npm run check` rather than a call.
+ */
+const ROUTED: ReadonlySet<string> = new Set<ToolName>([
+  "verify_identity",
+  "request_otp",
+  "request_callback",
+  "lookup_account_balance",
+  "list_transactions",
+  "get_invoices",
+  "get_party_payments",
+  "list_pending_approvals",
+  "draft_invoice",
+  "draft_beneficiary",
+]);
+
+/** What `session_start` and `verify_identity` hand to the agent. */
+export function advertisedTools(input: PolicyInput): ToolName[] {
+  return allowedTools(input).filter((t) => ROUTED.has(t));
+}
+
+export function routedTools(): ToolName[] {
+  return [...ROUTED] as ToolName[];
+}
+
 export function canUse(tool: ToolName, input: PolicyInput): boolean {
   return allowedTools(input).includes(tool);
 }

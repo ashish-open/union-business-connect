@@ -15,7 +15,7 @@
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { authenticate } from "@/lib/voice/auth";
-import { allowedTools, autonomyCeiling, killSwitchOn } from "@/lib/voice/policy";
+import { advertisedTools, autonomyCeiling, killSwitchOn } from "@/lib/voice/policy";
 import { resolveCaller } from "@/lib/voice/registry";
 import { logTool, ok, refuse } from "@/lib/voice/respond";
 import { mintSession } from "@/lib/voice/session";
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     );
   }
   const authLevel = skipVerify ? ("verified" as const) : ("cli_only" as const);
-  const tools = allowedTools({ role: caller.role, authLevel });
+  const tools = advertisedTools({ role: caller.role, authLevel });
 
   let sessionToken: string;
   try {

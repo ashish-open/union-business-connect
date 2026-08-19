@@ -13,7 +13,7 @@
 import { ok, refuse, tool } from "@/lib/voice/handler";
 import { verifyOtp } from "@/lib/voice/otp";
 import { isLocked, recordAttempt, verifyPin } from "@/lib/voice/pin";
-import { allowedTools } from "@/lib/voice/policy";
+import { advertisedTools } from "@/lib/voice/policy";
 import { upgradeSession } from "@/lib/voice/session";
 import { markCallVerified } from "@/lib/voice/store";
 
@@ -79,7 +79,7 @@ export const POST = tool<Args>("verify_identity", ({ claims, args, callId }) => 
    * policy's, which is why it came and went depending on whether the model
    * consulted the variable or simply called the tool.
    */
-  const toolsWhenVerified = allowedTools({ role: claims.role, authLevel: "verified" });
+  const toolsWhenVerified = advertisedTools({ role: claims.role, authLevel: "verified" });
 
   if (claims.authLevel === "verified") {
     return ok("You're already verified — go ahead.", { auth_level: "verified", tools_allowed: toolsWhenVerified });
