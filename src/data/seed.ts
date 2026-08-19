@@ -43,6 +43,26 @@ export interface PendingApproval {
   count: number;
   total: number;
   note: string;
+  /**
+   * Every payment in the batch, named.
+   *
+   * This did not exist, and its absence was the defect: the screen offered
+   * "Review & approve" on "₹2,14,600 across 6 payments" and could not show the
+   * six, because nothing anywhere knew what they were. Approving a total is how
+   * a wrong vendor gets paid — the batch is the only place it would ever have
+   * been visible.
+   *
+   * `count` and `total` stay, and `validate.ts` asserts they agree with these
+   * lines, so a screen may quote either and cannot contradict the other.
+   */
+  lines: ApprovalLine[];
+}
+
+export interface ApprovalLine {
+  payee: string;
+  amount: number;
+  /** What it is for — the thing that makes a line checkable at a glance. */
+  tag: string;
 }
 
 export interface ReturnedPayout {
@@ -833,6 +853,16 @@ export const BANK_CUSTOMERS: BankCustomer[] = [
             count: 6,
             total: 214600,
             note: "Thursday vendor run — raw material + packaging",
+            /* Names match the vendors this business actually pays, so the batch
+               reads like its own statement rather than six invented rows. */
+            lines: [
+              { payee: "Sri Lakshmi Traders", amount: 68400, tag: "Raw material — rice, oil" },
+              { payee: "Freshpoint Agro", amount: 42800, tag: "Vegetables — week 30" },
+              { payee: "Kannan Packaging", amount: 38600, tag: "Delivery boxes" },
+              { payee: "Nandini Dairy distributor", amount: 27500, tag: "Milk — weekly" },
+              { payee: "Metro Cash & Carry", amount: 22900, tag: "Dry stores" },
+              { payee: "Porter (transport)", amount: 14400, tag: "Outlet runs" },
+            ],
           },
         ],
         returned: [

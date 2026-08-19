@@ -251,6 +251,30 @@ const bothWays: Entity = {
   }
 }
 
+/*
+ * An approval's headline against the payments it is made of.
+ *
+ * `count` and `total` used to be the only thing a pending approval knew, so the
+ * screen could offer to clear six payments it was unable to name. Now the lines
+ * exist and two figures describe one batch — which is this file's whole subject.
+ */
+for (const e of ents) {
+  for (const a of e.approvals) {
+    agree(
+      e.name,
+      `approval ${a.id} · what the batch says vs what is in it`,
+      ["count on the approval", a.count],
+      ["payments listed", a.lines.length],
+    );
+    agree(
+      e.name,
+      `approval ${a.id} · total vs the lines`,
+      ["total on the approval", a.total],
+      ["lines, summed", a.lines.reduce((sum, l) => sum + l.amount, 0)],
+    );
+  }
+}
+
 console.log(
   fail === 0
     ? `\nEVERY SCREEN AGREES  ·  ${ents.length} personas + 1 probe fixture`

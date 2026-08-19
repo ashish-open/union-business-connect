@@ -6,6 +6,9 @@
 // Returns are first-class: a payment isn't "done" at submission.
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQueryString } from "@/lib/useQueryString";
 import { useDismissable } from "@/lib/useDismissable";
 import { ArrowUpRight, Check, CircleAlert, ShieldCheck, Users, X } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
@@ -17,7 +20,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Money } from "@/components/ui/Money";
 import { brand } from "@/config/brand";
-import { ANCHOR_DATE } from "@/data/seed";
+import { ANCHOR_DATE, type PendingApproval } from "@/data/seed";
 import {
   derivePayees,
   legalNameFor,
@@ -31,10 +34,11 @@ import { payable } from "@/lib/balance";
 import { ConfirmPayment } from "@/components/money/ConfirmPayment";
 import { ShortOfBalance } from "@/components/money/ShortOfBalance";
 import { cn } from "@/lib/cn";
-import { fmtDate, formatINR, maskAccount, parseAmount, parseIfsc } from "@/lib/format";
+import { fmtDate, formatINR, maskAccount, parseAmount, parseIfsc, plural } from "@/lib/format";
 import { useCustomer, useEntity, useStore, SessionPayee, SessionPayment } from "@/store/useStore";
 
 export default function PayoutsPage() {
+  const router = useRouter();
   const entity = useEntity();
   const customer = useCustomer();
   const resolved = useStore((s) => s.resolved);
@@ -45,9 +49,26 @@ export default function PayoutsPage() {
   const addPayee = useStore((s) => s.addPayee);
   const makerCheckerPref = useStore((s) => (entity ? s.makerChecker[entity.id] : undefined));
 
+  /*
+   * `?pay=<payee>&amount=<n>` — how a returned payment is sent again.
+   *
+   * Read as the INITIAL state rather than corrected by an effect a render later,
+   * so the sheet is never briefly open on the wrong payee. `useQueryString` and
+   * not `useSearchParams`: the latter suspends the tree up to the nearest
+   * boundary, which is what left /statement rendering an empty shell on a cold
+   * load.
+   */
+  const query = useQueryString();
+  const asked = useMemo(() => {
+    const q = new URLSearchParams(query);
+    const name = q.get("pay");
+    return name ? { name, amount: q.get("amount") ?? "" } : null;
+  }, [query]);
+
   const [payTo, setPayTo] = useState<Payee | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [approving, setApproving] = useState<PendingApproval | null>(null);
 
   // Payees are derived from who you have actually paid — which left a
   // brand-new beneficiary nowhere to live, so "ready to pay" was a claim the
@@ -72,6 +93,13 @@ export default function PayoutsPage() {
     return [...added, ...derived];
   }, [entity, sessionPayees]);
   const recent = useMemo(() => (entity ? recentPayments(entity) : []), [entity]);
+
+  /*
+   * The deep link resolves against the payee list, so "send it again" lands on
+   * the same person the failed payment went to — matched by name, because that
+   * is the only handle a derived payee has.
+   */
+  const askedPayee = asked ? (payees.find((p) => p.name === asked.name) ?? null) : null;
 
   if (!entity) return <AppShell />;
 
@@ -177,11 +205,34 @@ export default function PayoutsPage() {
                     </div>
                   </div>
                   {!done && (
-                    <Button size="sm" variant="secondary" onClick={() => resolveItem(entity.id, `ap-${a.id}`)}>
+                    <Button size="sm" variant="secondary" onClick={() => setApproving(a)}>
                       Review &amp; approve
                     </Button>
                   )}
                 </div>
+
+                {/* Every payment in the batch, on the card, before anything is
+                    approved.
+                    This button used to clear the whole run on one press with the
+                    six payments nowhere on screen — the total was the only thing
+                    the data knew. Approving a figure is exactly how the wrong
+                    vendor gets paid, and a batch is the one place it would have
+                    been visible. */}
+                <ul className="mt-3 divide-y divide-border border-t border-border">
+                  {a.lines.map((l) => (
+                    <li
+                      key={l.payee}
+                      className="flex items-center gap-3 py-2"
+                    >
+                      <Avatar name={l.payee} size="sm" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12.5px] text-ink">{l.payee}</span>
+                        <span className="block truncate text-[11px] text-ink-3">{l.tag}</span>
+                      </span>
+                      <Money value={l.amount} size="sm" className="shrink-0" />
+                    </li>
+                  ))}
+                </ul>
               </Card>
             );
           })}
@@ -203,6 +254,7 @@ export default function PayoutsPage() {
             {mine.map((p) => (
               <PaymentRow
                 key={p.id}
+                id={p.id}
                 payee={p.payee}
                 amount={p.amount}
                 sub={`${p.mode} · ${p.lands}${p.tag ? ` · ${p.tag}` : ""}`}
@@ -214,6 +266,7 @@ export default function PayoutsPage() {
               return (
                 <PaymentRow
                   key={p.id}
+                  id={p.id}
                   payee={p.payee}
                   amount={p.amount}
                   sub={
@@ -222,11 +275,6 @@ export default function PayoutsPage() {
                       : `${fmtDate(p.date)}${p.utr ? ` · UTR ${p.utr}` : ""}`
                   }
                   status={retried ? "retry-queued" : p.status}
-                  onRetry={
-                    p.status === "returned" && !retried
-                      ? () => resolveItem(entity.id, `rp-${p.id.replace("ret-", "")}`)
-                      : undefined
-                  }
                 />
               );
             })}
@@ -293,14 +341,26 @@ export default function PayoutsPage() {
         </section>
       </div>
 
-      {payOpen && (
+      {(payOpen || asked) && (
         <PaySheet
           payees={payees}
-          preselected={payTo}
+          /* Null when the failed payment went somewhere that is not a saved
+             payee — which is the usual case for the return this exists for:
+             "beneficiary account closed" means the old details are the problem,
+             so landing on the picker with an empty slot is right, and prefilling
+             the dead account would be wrong. */
+          preselected={payTo ?? askedPayee}
+          initialAmount={payTo ? "" : (asked?.amount ?? "")}
           available={available}
           watchedOnly={watchedOnly}
           hasChecker={makerCheckerPref ?? !!entity.secondUser}
-          onClose={() => setPayOpen(false)}
+          onClose={() => {
+            setPayOpen(false);
+            setPayTo(null);
+            /* Drop `?pay=` on the way out, or closing the sheet leaves a URL
+               that reopens it on the next render. */
+            if (asked) router.replace("/payouts");
+          }}
           onAddPayee={() => {
             // Hand straight over to the add flow; it comes back into the
             // payment with the new payee already chosen.
@@ -310,6 +370,16 @@ export default function PayoutsPage() {
           onDone={(p) => {
             addPayment(entity.id, p);
             setPayOpen(false);
+          }}
+        />
+      )}
+      {approving && (
+        <ApproveRunSheet
+          approval={approving}
+          onClose={() => setApproving(null)}
+          onApprove={() => {
+            resolveItem(entity.id, `ap-${approving.id}`);
+            setApproving(null);
           }}
         />
       )}
@@ -356,21 +426,36 @@ function EmptyState({ icon: Icon, title, body }: { icon: typeof Check; title: st
 
 /* ------------------------------------------------------------------ */
 
+/*
+ * A row no longer offers its own retry.
+ *
+ * It used to, and pressing it marked the return resolved and created nothing —
+ * the row then said "Retry queued" about a payment that did not exist. The retry
+ * lives on the payment's own screen now, where it makes a real new payment and
+ * this failed attempt survives beside it.
+ */
 function PaymentRow({
+  id,
   payee,
   amount,
   sub,
   status,
-  onRetry,
 }: {
+  /** The record this row is a view of. Absent means there is nothing to open. */
+  id?: string;
   payee: string;
   amount: number;
   sub: string;
   status: "credited" | "returned" | "queued" | "retry-queued";
-  onRetry?: () => void;
 }) {
-  return (
-    <div className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0">
+  const shell = cn(
+    "flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0",
+    id && "transition-colors hover:bg-surface-2",
+  );
+  /* The row opens the payment. It used to be the only representation of one, so
+     the UTR it printed in grey was as far as the product could go. */
+  const inner = (
+    <>
       <Avatar name={payee} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13.5px] text-ink">{payee}</p>
@@ -390,13 +475,16 @@ function PaymentRow({
           <CircleAlert size={11} strokeWidth={2.5} /> Returned
         </Badge>
       )}
-      {onRetry && (
-        <Button size="sm" variant="secondary" onClick={onRetry}>
-          Fix &amp; retry
-        </Button>
-      )}
       <Money value={-amount} size="sm" className="shrink-0" />
-    </div>
+    </>
+  );
+
+  return id ? (
+    <Link href={`/payouts/${encodeURIComponent(id)}`} className={shell}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={shell}>{inner}</div>
   );
 }
 
@@ -420,6 +508,7 @@ type PayStage = "amount" | "review" | "sent";
 function PaySheet({
   payees,
   preselected,
+  initialAmount,
   available,
   watchedOnly,
   hasChecker,
@@ -429,6 +518,8 @@ function PaySheet({
 }: {
   payees: Payee[];
   preselected: Payee | null;
+  /** Prefilled by a retry, so a failed amount is not retyped from memory. */
+  initialAmount?: string;
   /** What the accounts we hold rails to can actually send right now. */
   available: number;
   /** Balances we can see but not move — named so the shortfall can point at them. */
@@ -439,7 +530,7 @@ function PaySheet({
   onDone: (p: SessionPayment) => void;
 }) {
   const [payee, setPayee] = useState<Payee | null>(preselected);
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialAmount ?? "");
   const [tag, setTag] = useState("");
   const [stage, setStage] = useState<PayStage>("amount");
   const parsed = parseAmount(amount);
@@ -806,6 +897,68 @@ function AddPayeeSheet({
           )}
         </div>
       )}
+    </Sheet>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+/*
+ * Clearing a prepared run — one press that sends six payments.
+ *
+ * So it restates them all. `ConfirmPayment` does this for a single payee and
+ * deliberately is not reused here: its whole shape is one legal name and one
+ * arrival, and a batch has neither. What both share is the rule — the last
+ * thing read before money moves lists what moves, never only the total.
+ */
+function ApproveRunSheet({
+  approval,
+  onClose,
+  onApprove,
+}: {
+  approval: PendingApproval;
+  onClose: () => void;
+  onApprove: () => void;
+}) {
+  return (
+    <Sheet
+      title="Approve the run"
+      onClose={onClose}
+      footer={
+        <SheetFooter
+          retreat={{ label: "Payments", onClick: onClose }}
+          advance={{
+            label: `Approve ${approval.count} payments · ${formatINR(approval.total)}`,
+            onClick: onApprove,
+          }}
+          hint="They go out in the next payment run."
+        />
+      }
+    >
+      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
+        Prepared by {approval.preparedBy}
+      </p>
+      <p className="mt-1 text-[13px] leading-5 text-ink-2">{approval.note}</p>
+
+      <ul className="mt-4 divide-y divide-border rounded-[10px] border border-border">
+        {approval.lines.map((l) => (
+          <li key={l.payee} className="flex items-center gap-3 px-3.5 py-2.5">
+            <Avatar name={l.payee} size="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12.5px] text-ink">{l.payee}</span>
+              <span className="block truncate text-[11px] text-ink-3">{l.tag}</span>
+            </span>
+            <Money value={l.amount} size="sm" className="shrink-0" />
+          </li>
+        ))}
+      </ul>
+
+      {/* The total sits UNDER the list, as its sum. Above it, it is a headline
+          you approve instead of reading the lines. */}
+      <div className="mt-2.5 flex items-baseline justify-between gap-3 px-3.5">
+        <span className="text-[11.5px] text-ink-3">{plural(approval.count, "payment")}</span>
+        <Money value={approval.total} size="md" />
+      </div>
     </Sheet>
   );
 }

@@ -3,7 +3,7 @@
 // rail realities: mode choice changes when money arrives, and the UI says so.
 
 import { ANCHOR_DATE, Entity } from "@/data/seed";
-import { addDays } from "@/lib/format";
+import { addDays, fmtDate } from "@/lib/format";
 import { resolveCounterparty } from "@/lib/analysis";
 
 export interface Payee {
@@ -109,6 +109,82 @@ export function modeFor(amount: number): {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* One payment, and what happened to it                                 */
+/* ------------------------------------------------------------------ */
+
+export interface PaymentEvent {
+  label: string;
+  detail?: string;
+  /** "done" is history, "now" is where it has got to, "bad" is a return. */
+  tone: "done" | "now" | "bad";
+}
+
+export interface PaymentRecord {
+  id: string;
+  payee: string;
+  amount: number;
+  date: string;
+  status: RecentPayment["status"];
+  utr?: string;
+  note?: string;
+  mode?: string;
+  lands?: string;
+  tag?: string;
+  timeline: PaymentEvent[];
+}
+
+/**
+ * The events behind a payment, derived from what it is rather than stored.
+ *
+ * A payment had no record of its own anywhere: the list showed a row, and the
+ * row was everything the product could say. The question a vendor actually asks
+ * — "can you send me the reference?" — had no screen to answer it, and a
+ * returned payment showed a reason with no account of when it left, when it came
+ * back, or what the money did in between.
+ *
+ * Three shapes, because there are three endings: it arrived, it is waiting to
+ * go, or it came back.
+ */
+export function paymentTimeline(p: {
+  status: RecentPayment["status"];
+  date: string;
+  payee: string;
+  utr?: string;
+  note?: string;
+  mode?: string;
+}): PaymentEvent[] {
+  const rail = p.mode ?? "IMPS";
+  if (p.status === "returned") {
+    return [
+      { label: "Submitted", detail: fmtDate(p.date), tone: "done" },
+      { label: `Sent on ${rail}`, detail: `To ${p.payee}`, tone: "done" },
+      {
+        label: "Returned by the bank",
+        /* The reason AND where the money is. A return that does not say the
+           money is back reads as money lost. */
+        detail: `${p.note ?? "Rejected"} · the money is back in your account`,
+        tone: "bad",
+      },
+    ];
+  }
+  if (p.status === "credited") {
+    return [
+      { label: "Submitted", detail: fmtDate(p.date), tone: "done" },
+      { label: `Sent on ${rail}`, tone: "done" },
+      {
+        label: "Credited to the payee",
+        detail: p.utr ? `UTR ${p.utr}` : undefined,
+        tone: "done",
+      },
+    ];
+  }
+  return [
+    { label: "Submitted", detail: fmtDate(p.date), tone: "done" },
+    { label: "Queued for the next payment run", tone: "now" },
+  ];
+}
+
 export interface RecentPayment {
   id: string;
   payee: string;
@@ -120,6 +196,48 @@ export interface RecentPayment {
 }
 
 /** Recent activity: latest debits as credited payments + the seeded return. */
+/**
+ * One payment by its id, from wherever it came from.
+ *
+ * Three sources, because a payment in this product can be a bank debit the
+ * statement already carries (`tx-`), a return the bank sent back (`ret-`), or
+ * one made in this session that has not settled yet (`sp-`). The detail screen
+ * asks for an id and does not care which.
+ */
+export function paymentById(
+  entity: Entity,
+  id: string,
+  session: Array<{ id: string; payee: string; amount: number; mode: string; lands: string; tag?: string }> = [],
+): PaymentRecord | undefined {
+  const mine = session.find((p) => p.id === id);
+  if (mine) {
+    const base = {
+      status: "queued" as const,
+      date: ANCHOR_DATE,
+      payee: mine.payee,
+      mode: mine.mode,
+    };
+    return {
+      id,
+      payee: mine.payee,
+      amount: mine.amount,
+      date: ANCHOR_DATE,
+      status: "queued",
+      mode: mine.mode,
+      lands: mine.lands,
+      tag: mine.tag,
+      timeline: paymentTimeline(base),
+    };
+  }
+
+  const found = recentPayments(entity, 500).find((p) => p.id === id);
+  if (!found) return undefined;
+  return {
+    ...found,
+    timeline: paymentTimeline(found),
+  };
+}
+
 export function recentPayments(entity: Entity, limit = 7): RecentPayment[] {
   const out: RecentPayment[] = [];
   for (const r of entity.returned) {
