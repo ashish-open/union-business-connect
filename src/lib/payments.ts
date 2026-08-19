@@ -14,9 +14,53 @@ export interface Payee {
   lastPaid: string;
   totalPaid: number;
   payments: number;
+  /** What the BANK calls this account. See `legalNameFor`. */
+  legalName: string;
+  /** Set when someone accepted a name that did not match, and by whom. */
+  mismatchAcceptedBy?: string;
 }
 
 const PAYEE_KINDS = new Set(["vendor", "labour", "transport", "rent", "utility"]);
+
+/*
+ * What the bank's records call an account, as against what the customer typed.
+ *
+ * A penny drop's entire purpose is that these two can differ, and a mismatch
+ * between them is the commonest reason a payment goes to the wrong place. The
+ * flow used to compute the "bank's" answer as `name.toUpperCase()`, so it agreed
+ * by construction: the screen performed a verification whose outcome it had
+ * already decided. A check that cannot fail is not a check.
+ *
+ * An explicit table rather than a rule. "Anything ending in Traders registers as
+ * TRADING CO" would fire on payees where we have no reason to believe it, and a
+ * mismatch warning that cries wolf gets clicked through — which is worse than
+ * not having one. These are the accounts we are asserting a registered name for;
+ * everything else matches, and says so.
+ */
+const REGISTERED: Record<string, string> = {
+  "sri lakshmi traders": "SRI LAKSHMI TRADING CO",
+  "sharma traders": "SHARMA TRADING COMPANY",
+  "packman prints": "PACKMAN PRINTS PVT LTD",
+  "kannan packaging": "KANNAN PACKAGING INDUSTRIES",
+};
+
+/** The bank's name for an account. Upper case, because bank records are. */
+export function legalNameFor(typed: string): string {
+  const key = typed.trim().toLowerCase().replace(/\s+/g, " ");
+  return REGISTERED[key] ?? typed.trim().toUpperCase();
+}
+
+/**
+ * Whether the bank's name and the typed name are the same account holder.
+ *
+ * Compared on letters and digits only: "M/s Sharma Traders." and "SHARMA
+ * TRADERS" are the same name typed by two people, and flagging that as a
+ * mismatch would be the cried wolf above.
+ */
+export function nameMatches(typed: string, legal: string): boolean {
+  const flat = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return flat(typed) === flat(legal);
+}
 
 export function derivePayees(entity: Entity): Payee[] {
   const map = new Map<string, Payee>();
@@ -35,6 +79,7 @@ export function derivePayees(entity: Entity): Payee[] {
         kind: r.kind,
         masked: `••${accountTail(r.name)}`,
         ifsc: ifscFor(r.name),
+        legalName: legalNameFor(r.name),
         lastPaid: t.date,
         totalPaid: t.amount,
         payments: 1,

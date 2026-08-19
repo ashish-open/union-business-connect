@@ -192,6 +192,21 @@ export interface SessionPayee {
   name: string;
   account: string;
   ifsc: string;
+  /**
+   * What the penny drop said the account is called.
+   *
+   * Stored rather than recomputed at each screen: it is evidence obtained at a
+   * moment in time, and the whole point of showing it before a payment is that
+   * it comes from the bank and not from us.
+   */
+  legalName?: string;
+  /**
+   * Who accepted a name that did not match, when one did not.
+   *
+   * An override that leaves no trace is indistinguishable from a check that
+   * never happened. Absent means the names agreed.
+   */
+  mismatchAcceptedBy?: string;
 }
 
 export interface CAApplication {

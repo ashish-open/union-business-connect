@@ -14,12 +14,15 @@
  */
 
 import type { Doc } from "@/lib/docs";
+import { legalNameFor } from "@/lib/payments";
 import type { SlotValue } from "./slots";
 
 export interface Payee {
   name: string;
   account: string;
   ifsc: string;
+  /** What the bank calls the account — see `legalNameFor`. */
+  legalName?: string;
 }
 
 function val(values: SlotValue[], key: string): string | number | null {
@@ -81,10 +84,14 @@ export function toInvoice(
 }
 
 export function toPayee(values: SlotValue[]): Payee {
+  const name = String(val(values, "party") ?? "");
   return {
-    name: String(val(values, "party") ?? ""),
+    name,
     account: String(val(values, "account") ?? ""),
     ifsc: String(val(values, "ifsc") ?? "").toUpperCase(),
+    /* A payee approved from the voice queue carries the same bank name a payee
+       added by hand does, so the payment screen has it either way. */
+    legalName: legalNameFor(name),
   };
 }
 

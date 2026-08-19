@@ -18,13 +18,25 @@ import { Input } from "@/components/ui/Input";
 import { Money } from "@/components/ui/Money";
 import { brand } from "@/config/brand";
 import { ANCHOR_DATE } from "@/data/seed";
-import { derivePayees, modeFor, payoutHistoryCount, recentPayments, Payee } from "@/lib/payments";
+import {
+  derivePayees,
+  legalNameFor,
+  modeFor,
+  nameMatches,
+  payoutHistoryCount,
+  recentPayments,
+  Payee,
+} from "@/lib/payments";
+import { payable } from "@/lib/balance";
+import { ConfirmPayment } from "@/components/money/ConfirmPayment";
+import { ShortOfBalance } from "@/components/money/ShortOfBalance";
 import { cn } from "@/lib/cn";
 import { fmtDate, formatINR, maskAccount, parseAmount, parseIfsc } from "@/lib/format";
-import { useEntity, useStore, SessionPayee, SessionPayment } from "@/store/useStore";
+import { useCustomer, useEntity, useStore, SessionPayee, SessionPayment } from "@/store/useStore";
 
 export default function PayoutsPage() {
   const entity = useEntity();
+  const customer = useCustomer();
   const resolved = useStore((s) => s.resolved);
   const resolveItem = useStore((s) => s.resolveItem);
   const sessionPayments = useStore((s) => s.sessionPayments);
@@ -51,6 +63,10 @@ export default function PayoutsPage() {
       lastPaid: ANCHOR_DATE,
       totalPaid: 0,
       payments: 0,
+      /* The name the penny drop returned when they were added, not a fresh
+         guess — this is evidence from a moment in time. */
+      legalName: p.legalName ?? legalNameFor(p.name),
+      mismatchAcceptedBy: p.mismatchAcceptedBy,
     }));
     const derived = derivePayees(entity).filter((d) => !added.some((a) => a.name === d.name));
     return [...added, ...derived];
@@ -61,6 +77,20 @@ export default function PayoutsPage() {
 
   const mine = sessionPayments[entity.id] ?? [];
   const primaryAccount = entity.accounts.find((a) => !a.readOnly);
+  /*
+   * What can actually be sent, right now.
+   *
+   * `payable` counts only the accounts we hold rails to — money in an
+   * AA-linked account is money we can see and cannot move, which is the whole
+   * premise of the sweep-in offer. Payments already made this session come off
+   * it, because otherwise the same ₹7 L could be sent five times over and the
+   * fifth screen would look exactly as confident as the first.
+   */
+  const spent = mine.reduce((sum, p) => sum + p.amount, 0);
+  const available = Math.max(0, (payable(entity) ?? 0) - spent);
+  const watchedOnly = entity.accounts
+    .filter((a) => a.readOnly)
+    .reduce((sum, a) => sum + a.balance, 0);
   const waiting = entity.approvals.filter((a) => !resolved[`${entity.id}/ap-${a.id}`]);
 
   // Destination-sized entry points for the two or three things you come to
@@ -267,6 +297,8 @@ export default function PayoutsPage() {
         <PaySheet
           payees={payees}
           preselected={payTo}
+          available={available}
+          watchedOnly={watchedOnly}
           hasChecker={makerCheckerPref ?? !!entity.secondUser}
           onClose={() => setPayOpen(false)}
           onAddPayee={() => {
@@ -283,6 +315,7 @@ export default function PayoutsPage() {
       )}
       {addOpen && (
         <AddPayeeSheet
+          acceptedBy={customer?.name ?? "You"}
           onClose={() => setAddOpen(false)}
           onAdded={(p) => {
             addPayee(entity.id, p);
@@ -296,6 +329,8 @@ export default function PayoutsPage() {
               lastPaid: ANCHOR_DATE,
               totalPaid: 0,
               payments: 0,
+              legalName: p.legalName ?? legalNameFor(p.name),
+              mismatchAcceptedBy: p.mismatchAcceptedBy,
             });
             setPayOpen(true);
           }}
@@ -367,9 +402,26 @@ function PaymentRow({
 
 /* ------------------------------------------------------------------ */
 
+/*
+ * Choose who, enter how much, READ IT BACK, then send.
+ *
+ * The review stage is new and it is the point of this flow. Before it, the
+ * amount step's button was the commit: one press moved the money, and the four
+ * facts that decide whether a payment is a mistake — how much, to whose account
+ * by the bank's name, on which rail, and whether it can be taken back — were
+ * never on one screen. There was also no balance check at all, so the flow
+ * would confirm a figure the account could not cover.
+ *
+ * Friction is normally the enemy here. This is the exception the product should
+ * make: the only friction worth adding is the friction that protects money.
+ */
+type PayStage = "amount" | "review" | "sent";
+
 function PaySheet({
   payees,
   preselected,
+  available,
+  watchedOnly,
   hasChecker,
   onClose,
   onAddPayee,
@@ -377,6 +429,10 @@ function PaySheet({
 }: {
   payees: Payee[];
   preselected: Payee | null;
+  /** What the accounts we hold rails to can actually send right now. */
+  available: number;
+  /** Balances we can see but not move — named so the shortfall can point at them. */
+  watchedOnly: number;
   hasChecker: boolean;
   onClose: () => void;
   onAddPayee: () => void;
@@ -385,14 +441,25 @@ function PaySheet({
   const [payee, setPayee] = useState<Payee | null>(preselected);
   const [amount, setAmount] = useState("");
   const [tag, setTag] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
+  const [stage, setStage] = useState<PayStage>("amount");
   const parsed = parseAmount(amount);
   const amt = parsed?.value ?? 0;
   const suggestion = modeFor(amt);
+  const short = Math.max(0, amt - available);
+  const covered = amt > 0 && short === 0;
+  const confirmed = stage === "sent";
 
-  function submit() {
-    if (!payee || amt <= 0) return;
-    setConfirmed(true);
+  /* In this workspace the signed-in owner IS the approver, so a large payment
+     still leaves immediately — it just says so first. Where a business has a
+     separate checker this is where the queued wording belongs. */
+  const approvalNote =
+    hasChecker && amt >= 100000
+      ? "Over ₹1,00,000 — your approval clears it, and it goes straight away."
+      : undefined;
+
+  function send() {
+    if (!payee || !covered) return;
+    setStage("sent");
     setTimeout(() => {
       onDone({
         id: `sp-${payee.name}-${amt}`,
@@ -412,15 +479,39 @@ function PaySheet({
       /* Nothing to pin while you are still choosing WHO — the list is the
          action, and a dead "Pay ₹0" under it would be furniture. */
       footer={
-        confirmed || !payee ? undefined : (
+        confirmed || !payee ? undefined : stage === "review" ? (
+          /* The commit, and the only button in the flow that moves money. It
+             names the rail as well as the amount, so what you press says what
+             it does. */
+          <SheetFooter
+            retreat={{ label: "Change the amount", onClick: () => setStage("amount") }}
+            advance={{
+              label: `Send ${formatINR(amt)} · ${suggestion.mode}`,
+              onClick: send,
+            }}
+            hint={
+              approvalNote
+                ? "You are the approver, so this leaves as soon as you press it."
+                : "This cannot be recalled."
+            }
+          />
+        ) : (
+          /* Advancing to the review is NOT a payment, so it does not claim to
+             be one. It used to read "Pay ₹45,000 · IMPS" and it paid. */
           <SheetFooter
             retreat={{ label: "Change payee", onClick: () => setPayee(null) }}
             advance={{
-              label: amt > 0 ? `Pay ${formatINR(amt)} · ${suggestion.mode}` : "Pay",
-              disabled: amt <= 0,
-              onClick: submit,
+              label: "Review the payment",
+              disabled: !covered,
+              onClick: () => setStage("review"),
             }}
-            hint={amt <= 0 ? "Enter an amount." : undefined}
+            hint={
+              amt <= 0
+                ? "Enter an amount."
+                : short > 0
+                  ? `${formatINR(short)} more than this account can send.`
+                  : undefined
+            }
           />
         )
       }
@@ -437,6 +528,19 @@ function PaySheet({
             {suggestion.mode} · {suggestion.lands}
           </p>
         </div>
+      ) : stage === "review" && payee ? (
+        <ConfirmPayment
+          amount={amt}
+          payeeName={payee.name}
+          legalName={payee.legalName}
+          masked={payee.masked}
+          ifsc={payee.ifsc}
+          mode={suggestion.mode}
+          lands={suggestion.lands}
+          tag={tag || undefined}
+          approvalNote={approvalNote}
+          mismatchAcceptedBy={payee.mismatchAcceptedBy}
+        />
       ) : (
         <>
           {!payee ? (
@@ -505,7 +609,7 @@ function PaySheet({
                 onChange={(e) => setTag(e.target.value)}
                 className="mt-2.5"
               />
-              {amt > 0 && (
+              {amt > 0 && short === 0 && (
                 <div className="mt-3 rounded-[10px] bg-info-soft px-3.5 py-2.5 text-[12.5px] text-ink animate-fade">
                   <span className="font-semibold">{suggestion.mode}</span> · {suggestion.lands}
                   <span className="text-ink-3">
@@ -514,11 +618,16 @@ function PaySheet({
                   </span>
                 </div>
               )}
-              {hasChecker && amt >= 100000 && (
-                <p className="mt-2 text-[11.5px] text-ink-3">
-                  Over ₹1,00,000 — as the approver, your confirmation clears it in one step.
-                </p>
+              {/* Said here, while the amount can still be changed, rather than
+                  after the bank has bounced it. */}
+              {short > 0 && (
+                <ShortOfBalance short={short} available={available} elsewhere={watchedOnly} />
               )}
+              {/* What this account can send, always in view — a balance you have
+                  to leave the flow to check is a balance nobody checks. */}
+              <p className="mt-2 text-[11.5px] text-ink-3 tnum">
+                {`${formatINR(available)} available to send`}
+              </p>
             </>
           )}
         </>
@@ -536,9 +645,12 @@ function PaySheet({
 // beneficiary vanished the moment the sheet closed. That line was the
 // strongest claim on the screen and it was false.
 function AddPayeeSheet({
+  acceptedBy,
   onClose,
   onAdded,
 }: {
+  /** Recorded against an accepted mismatch — an override needs an owner. */
+  acceptedBy: string;
   onClose: () => void;
   onAdded: (p: SessionPayee) => void;
 }) {
@@ -559,7 +671,14 @@ function AddPayeeSheet({
     setTimeout(() => setStage("matched"), 1400);
   }
 
-  const legal = name.toUpperCase();
+  /*
+   * What the bank came back with — which is allowed to differ from what was
+   * typed. It used to be `name.toUpperCase()`: the screen ran a verification
+   * whose result it had already decided, and then reported a match. The single
+   * commonest way a payment goes to the wrong account was unreachable.
+   */
+  const legal = legalNameFor(name);
+  const agrees = nameMatches(name, legal);
 
   return (
     <Sheet
@@ -576,9 +695,24 @@ function AddPayeeSheet({
           <SheetFooter
             retreat={{ label: "Change the details", onClick: () => setStage("form") }}
             advance={{
-              label: "Add payee and pay them",
-              onClick: () => onAdded({ name: name.trim(), account, ifsc: code! }),
+              label: agrees ? "Add payee and pay them" : "Use the bank's name and continue",
+              onClick: () =>
+                onAdded({
+                  name: name.trim(),
+                  account,
+                  ifsc: code!,
+                  legalName: legal,
+                  /* Stamped only when they actually overrode something. An
+                     override nobody can see afterwards is the same as a check
+                     that never ran. */
+                  mismatchAcceptedBy: agrees ? undefined : acceptedBy,
+                }),
             }}
+            hint={
+              agrees
+                ? undefined
+                : "The next screen shows the bank's name, not yours."
+            }
           />
         )
       }
@@ -618,16 +752,58 @@ function AddPayeeSheet({
       )}
       {stage === "matched" && (
         <div className="animate-rise">
-          <div className="rounded-[10px] bg-pos-soft px-4 py-3">
+          <div
+            className={cn(
+              "rounded-[10px] px-4 py-3",
+              agrees ? "bg-pos-soft" : "bg-warn-soft",
+            )}
+          >
             <p className="text-[12px] text-ink-2">The bank says this account belongs to</p>
             <p className="mt-0.5 text-[15px] font-semibold text-ink">{legal}</p>
-            <p className="mt-1 flex items-center gap-1 text-[12px] font-medium text-pos">
-              <Check size={12} strokeWidth={2.5} /> Matches the name you entered
-            </p>
+            {agrees ? (
+              <p className="mt-1 flex items-center gap-1 text-[12px] font-medium text-pos">
+                <Check size={12} strokeWidth={2.5} /> Matches the name you entered
+              </p>
+            ) : (
+              /* BOTH names, side by side, and no default choice.
+                 A mismatch is the commonest cause of money reaching the wrong
+                 account, so it stops the flow rather than colouring a border:
+                 the two names are stated as a comparison, and continuing is a
+                 decision somebody makes on the record. */
+              <>
+                <p className="mt-1.5 flex items-center gap-1 text-[12px] font-medium text-warn">
+                  <CircleAlert size={12} strokeWidth={2.5} /> Not the name you entered
+                </p>
+                <dl className="mt-2.5 space-y-1 border-t border-warn/25 pt-2.5 text-[12px]">
+                  <div className="flex gap-2">
+                    <dt className="w-24 shrink-0 text-ink-3">You typed</dt>
+                    <dd className="font-medium text-ink">{name.trim()}</dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="w-24 shrink-0 text-ink-3">The bank has</dt>
+                    <dd className="font-medium text-ink">{legal}</dd>
+                  </div>
+                </dl>
+              </>
+            )}
           </div>
-          <p className="mt-3 text-[11.5px] text-ink-3">
-            No cooling period. Verification replaced the waiting.
-          </p>
+          {/* Two lines, not a paragraph: the first says why a mismatch is
+              usually harmless, the second says when it is not. Run together they
+              were a wall, and a wall at the moment of deciding gets skipped. */}
+          {agrees ? (
+            <p className="mt-3 text-[11.5px] leading-5 text-ink-3">
+              No cooling period. Verification replaced the waiting.
+            </p>
+          ) : (
+            <>
+              <p className="mt-3 text-[11.5px] leading-5 text-ink-2">
+                Trading names and registered names often differ.
+              </p>
+              <p className="mt-1 text-[11.5px] leading-5 text-ink-3">
+                Don&apos;t recognise this one? Check the account number.
+              </p>
+            </>
+          )}
         </div>
       )}
     </Sheet>
