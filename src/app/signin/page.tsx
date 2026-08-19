@@ -1,28 +1,32 @@
 "use client";
 
-// Journey A: existing bank customer. Mobile → OTP → entity → one consent
-// screen → analysing (real work, revealed in stages) → the 60-second aha.
+// Journey A: existing bank customer. Mobile → OTP → which business → in.
 // Bank-shaped, not fintech-shaped: no "create account" form, KYC is read-only
 // from the bank record, and we never ask for net-banking credentials.
+//
+// Sign-in ENDS at the OTP (or at the picker, for someone who runs more than one
+// business). The consent, the analysis and the findings all used to live here
+// as three more steps; they are now one card over the loaded workspace
+// (`components/app/FirstRunDialog`). Reason: they were the product's whole
+// argument, spent on screens where nothing was clickable and anything not acted
+// on in that minute was gone.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Eye, Landmark, Lock, ShieldCheck, Undo2 } from "lucide-react";
+import { Landmark, Lock } from "lucide-react";
 import { BrandMark } from "@/components/app/BrandMark";
 import { StatementLine } from "@/components/statement/StatementLine";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input, OtpInput } from "@/components/ui/Input";
-import { Money } from "@/components/ui/Money";
 import { brand } from "@/config/brand";
 import { findCustomer, Entity } from "@/data/seed";
-import { analyse, Analysis, Tone } from "@/lib/analysis";
 import { cn } from "@/lib/cn";
 import { maskAccount } from "@/lib/format";
-import { useCustomer, useEntity, useStore } from "@/store/useStore";
+import { useCustomer, useStore } from "@/store/useStore";
 
-type Step = "phone" | "otp" | "entity" | "consent" | "analysing" | "findings";
+type Step = "phone" | "otp" | "entity";
 
 /**
  * The one line that must not be on screen in front of the bank.
@@ -34,18 +38,10 @@ type Step = "phone" | "otp" | "entity" | "consent" | "analysing" | "findings";
 const DEMO_HINT =
   process.env.NEXT_PUBLIC_DEMO === "off" ? "Six digits" : "Demo: any 6 digits work.";
 
-const TONE_BAR: Record<Tone, string> = {
-  info: "bg-info",
-  warn: "bg-warn",
-  neg: "bg-neg",
-  pos: "bg-pos",
-};
-
 export default function SignInPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("phone");
   const customer = useCustomer();
-  const entity = useEntity();
   const { signIn, selectEntity, finishOnboarding } = useStore();
 
   function handlePhoneVerified() {
@@ -55,17 +51,27 @@ export default function SignInPage() {
   function handleOtp() {
     const c = customer;
     if (!c) return;
+    // Asking "which business" of someone who has one is a question with one
+    // answer, so it is not asked.
     if (c.entities.length > 1) {
       setStep("entity");
-    } else {
-      selectEntity(c.entities[0].id);
-      setStep("consent");
+      return;
     }
+    enterWorkspace(c.entities[0].id);
   }
 
-  function enterWorkspace(dest = "/today") {
+  /**
+   * The last thing sign-in does.
+   *
+   * `selectEntity` before the push, not after: `AppShell` redirects back here
+   * when there is no entity, so navigating first would bounce straight out.
+   * Zustand's `set` is synchronous, so by the time the route changes the
+   * workspace has a business.
+   */
+  function enterWorkspace(entityId: string) {
+    selectEntity(entityId);
     finishOnboarding();
-    router.push(dest);
+    router.push("/today");
   }
 
   return (
@@ -83,26 +89,7 @@ export default function SignInPage() {
             <OtpStep mobile={customer.mobile} onDone={handleOtp} />
           )}
           {step === "entity" && customer && (
-            <EntityStep
-              entities={customer.entities}
-              onPick={(id) => {
-                selectEntity(id);
-                setStep("consent");
-              }}
-            />
-          )}
-          {step === "consent" && entity && (
-            <ConsentStep entity={entity} onAllow={() => setStep("analysing")} />
-          )}
-          {step === "analysing" && entity && (
-            <AnalysingStep entity={entity} onDone={() => setStep("findings")} />
-          )}
-          {step === "findings" && entity && customer && (
-            <FindingsStep
-              firstName={customer.firstName}
-              entity={entity}
-              onEnter={enterWorkspace}
-            />
+            <EntityStep entities={customer.entities} onPick={enterWorkspace} />
           )}
         </div>
 
@@ -250,6 +237,15 @@ function PhoneStep({
           Demo sign-ins
         </p>
         <div className="mt-2 flex flex-col gap-1.5">
+          {/* First, and deliberately: this is the number the phone line answers
+              on (`VOICE_ALLOWED_CALLERS`), so it is the one a demo reaches for
+              most and the one that should need no hunting. */}
+          <button
+            onClick={() => setValue("8907173502")}
+            className="w-fit rounded-lg bg-surface-2 px-3 py-1.5 text-[13px] text-ink-2 hover:text-ink transition-colors cursor-pointer tnum"
+          >
+            89071 73502 — Deepa · voice demo caller
+          </button>
           <button
             onClick={() => setValue("9845012345")}
             className="w-fit rounded-lg bg-surface-2 px-3 py-1.5 text-[13px] text-ink-2 hover:text-ink transition-colors cursor-pointer tnum"
@@ -360,237 +356,6 @@ function EntityStep({
             </Card>
           </button>
         ))}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-const CONSENT_ITEMS = [
-  {
-    icon: Eye,
-    title: "Read your statements and balances",
-    body: "Last 12 months, then ongoing — so every credit and debit can be explained.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Prepare payments for your approval",
-    body: "Nothing ever moves without your explicit approval and OTP.",
-  },
-  {
-    icon: Undo2,
-    title: "Revocable anytime",
-    /* Was "Withdraw consent in Settings and the connection is closed." There
-       is no Settings screen. Revocation is real now, but it lives per account
-       on /balance — so the promise names where it actually is. */
-    body: "Revoke it per account on Balance, and the reading stops that day.",
-  },
-];
-
-function ConsentStep({ entity, onAllow }: { entity: Entity; onAllow: () => void }) {
-  return (
-    <div className="animate-rise">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink">One consent, in plain words</h1>
-      <p className="mt-2 text-sm leading-6 text-ink-2">
-        For <span className="font-medium text-ink">{entity.legalName}</span>, you&apos;re allowing{" "}
-        {brand.productName} to:
-      </p>
-      <Card className="mt-6 divide-y divide-border" pad="none">
-        {CONSENT_ITEMS.map((item) => (
-          <div key={item.title} className="flex gap-3.5 p-4">
-            <item.icon size={18} className="mt-0.5 shrink-0 text-accent" />
-            <div>
-              <p className="text-sm font-medium text-ink">{item.title}</p>
-              <p className="mt-0.5 text-[13px] leading-5 text-ink-2">{item.body}</p>
-            </div>
-          </div>
-        ))}
-      </Card>
-      <Button size="lg" full className="mt-6" onClick={onAllow}>
-        Allow and continue
-      </Button>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-function AnalysingStep({ entity, onDone }: { entity: Entity; onDone: () => void }) {
-  const analysis = useMemo(() => analyse(entity), [entity]);
-  const [stage, setStage] = useState(0);
-  const done = useRef(false);
-
-  const steps = [
-    `Pulling ${analysis.txnCount} transactions from ${analysis.accountCount} account${analysis.accountCount > 1 ? "s" : ""} — last ${analysis.daysCovered} days`,
-    `Naming counterparties — ${analysis.resolvedPct}% resolved automatically`,
-    "Checking every credit against what you were owed",
-    analysis.findings.length > 0
-      ? `${analysis.findings.length} things need your eyes`
-      : "All clear — nothing needs your eyes",
-  ];
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setStage((s) => {
-        if (s >= steps.length) {
-          clearInterval(t);
-          if (!done.current) {
-            done.current = true;
-            setTimeout(onDone, 700);
-          }
-          return s;
-        }
-        return s + 1;
-      });
-    }, 1100);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <div className="animate-rise pt-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink">
-        Reading your statement…
-      </h1>
-      <p className="mt-2 text-sm text-ink-2">
-        This is the real work — it takes a few seconds.
-      </p>
-      <div className="mt-8 space-y-4">
-        {steps.map((label, i) => (
-          <div
-            key={label}
-            className={cn(
-              "flex items-center gap-3 transition-opacity duration-300",
-              i < stage ? "opacity-100" : i === stage ? "opacity-70" : "opacity-25",
-            )}
-          >
-            <span
-              className={cn(
-                "flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full",
-                i < stage ? "bg-pos-soft text-pos" : "border border-border-strong",
-              )}
-            >
-              {i < stage ? (
-                <Check size={12} strokeWidth={3} />
-              ) : i === stage ? (
-                <span className="h-1.5 w-1.5 rounded-full bg-ink-3 animate-pulse-soft" />
-              ) : null}
-            </span>
-            <p className={cn("text-sm", i < stage ? "text-ink" : "text-ink-2")}>{label}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-function FindingsStep({
-  firstName,
-  entity,
-  onEnter,
-}: {
-  firstName: string;
-  entity: Entity;
-  onEnter: (dest?: string) => void;
-}) {
-  const analysis: Analysis = useMemo(() => analyse(entity), [entity]);
-  const [peak, ...rest] = analysis.findings;
-
-
-  if (analysis.findings.length === 0) {
-    return (
-      <div className="animate-rise pt-6 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-pos-soft text-pos">
-          <Check size={22} strokeWidth={2.5} />
-        </div>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-ink">
-          All clear, {firstName}
-        </h1>
-        {/* Template literal, not JSX text: Turbopack eats the space after a
-            `{expr}` that ends a line, and this rendered as "the last 89days"
-            on the first screen a new customer ever sees. */}
-        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-ink-2">
-          {`${analysis.txnCount} transactions over the last ${analysis.daysCovered} days, and every one of them is explained. We'll watch and tell you the moment something isn't.`}
-        </p>
-        <Button size="lg" className="mt-8" onClick={() => onEnter()}>
-          Go to your workspace
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="animate-rise">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink">
-        Here&apos;s what we found, {firstName}
-      </h1>
-      <p className="mt-2 text-sm leading-6 text-ink-2">
-        {`From ${analysis.txnCount} transactions over the last ${analysis.daysCovered} days — before you set up anything.`}
-      </p>
-
-      {/* The peak: one number, at full weight, with the working under it.
-          Four findings of equal size is not a peak — it is a to-do list, and a
-          to-do list is the thing every competitor already opens with. The rest
-          stay, smaller, because they are true and worth knowing; they are just
-          not what this moment is for. */}
-      <div className="mt-6 rounded-(--radius-card) bg-surface p-5 shadow-(--shadow-card) animate-rise">
-        <Money value={peak.amount} size="hero" compact={peak.amount >= 10_00_000} />
-        <p className="mt-1.5 text-[15px] font-medium leading-6 text-ink">{peak.title}</p>
-        <p className="mt-1.5 text-[13px] leading-5 text-ink-2">{peak.body}</p>
-        <p className="mt-2 text-[11px] text-ink-3">{peak.evidence}</p>
-      </div>
-
-      {rest.length > 0 && (
-        <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
-          {`Also worth knowing`}
-        </p>
-      )}
-      <div className="mt-2 space-y-3 stagger">
-        {rest.map((f) => (
-          <div
-            key={f.kind}
-            className="relative rounded-(--radius-card) bg-surface p-4 pl-5 shadow-(--shadow-card)"
-          >
-            <span
-              className={cn("absolute left-0 top-4 bottom-4 w-0.5 rounded-full", TONE_BAR[f.tone])}
-              aria-hidden
-            />
-            <p className="text-[15px] leading-6 text-ink">
-              <Money value={f.amount} size="lg" className="mr-1.5" compact={f.amount >= 10_00_000} />
-              <span className="font-medium">{f.title}</span>
-            </p>
-            <p className="mt-1.5 text-[13px] leading-5 text-ink-2">{f.body}</p>
-            <p className="mt-1.5 text-[11px] text-ink-3">{f.evidence}</p>
-            <div className="mt-3">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="whitespace-nowrap"
-                onClick={() => onEnter(f.href)}
-              >
-                {f.action}
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* The end. One action, and it is the one that pays off the number
-          above — not a different errand, and not a dashboard. The escape sits
-          under it rather than beside it (F4), so leaving is possible without
-          being the obvious click. */}
-      <div className="mt-8">
-        <Button size="lg" full onClick={() => onEnter(analysis.primaryCta.href)}>
-          {analysis.primaryCta.label}
-          <ArrowRight size={15} />
-        </Button>
-        <p className="mt-2 text-center text-xs text-ink-3">{analysis.primaryCta.sub}</p>
-        <Button variant="ghost" full className="mt-2" onClick={() => onEnter()}>
-          Later — take me to my statement
-        </Button>
       </div>
     </div>
   );

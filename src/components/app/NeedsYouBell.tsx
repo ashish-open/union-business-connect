@@ -10,13 +10,18 @@
 // badge and the list can never disagree about what needs you. Rows go to
 // wherever the item is actually settled; items with no deep link go to Today,
 // where they are resolved in place.
+//
+// It is also where the first-run findings live after they are closed. The card
+// that opens over the workspace can be dismissed without cost precisely
+// because this reopens it — a summary you cannot get back is a summary you have
+// to read on the spot, which is how it ended up blocking sign-in.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, Check } from "lucide-react";
+import { Bell, Check, Sparkles } from "lucide-react";
 import { buildQueue } from "@/lib/today";
 import { draftToQueueItem, useVoiceDrafts } from "@/lib/voice/queue";
-import { formatINR } from "@/lib/format";
+import { formatINR, plural } from "@/lib/format";
 import { useDismissable } from "@/lib/useDismissable";
 import { cn } from "@/lib/cn";
 import type { Entity } from "@/data/seed";
@@ -26,6 +31,8 @@ export function NeedsYouBell({ entity }: { entity: Entity }) {
   const [open, setOpen] = useState(false);
   const resolved = useStore((s) => s.resolved);
   const channelsConnected = useStore((s) => s.channelsConnected);
+  const openFindings = useStore((s) => s.openFindings);
+  const connected = !!channelsConnected[entity.id];
 
   // Voice requests must be counted here too. The comment above says the badge
   // and the list can never disagree about what needs you — that only stays true
@@ -38,10 +45,10 @@ export function NeedsYouBell({ entity }: { entity: Entity }) {
 
   const items = useMemo(
     () =>
-      buildQueue(entity, !!channelsConnected[entity.id], voiceItems).filter(
+      buildQueue(entity, connected, voiceItems).filter(
         (i) => !resolved[`${entity.id}/${i.id}`],
       ),
-    [entity, resolved, channelsConnected, voiceItems],
+    [entity, resolved, connected, voiceItems],
   );
 
   return (
@@ -49,8 +56,12 @@ export function NeedsYouBell({ entity }: { entity: Entity }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        // `${n} things need you` said "1 things need you" — the same slip the
+        // analysing step had. Screen-reader-only copy is still copy.
         aria-label={
-          items.length === 0 ? "Nothing needs you" : `${items.length} things need you`
+          items.length === 0
+            ? "Nothing needs you"
+            : `${plural(items.length, "thing")} ${items.length === 1 ? "needs" : "need"} you`
         }
         className="relative rounded-md p-2 text-ink-2 transition-colors hover:bg-surface-2 cursor-pointer"
       >
@@ -116,6 +127,20 @@ export function NeedsYouBell({ entity }: { entity: Entity }) {
                 ))}
               </div>
             )}
+
+            {/* The recap the sign-in analysis produced. Unconditional, because
+                "what we found" includes finding nothing wrong — that is the
+                answer an owner most wants to be able to check again. */}
+            <button
+              onClick={() => {
+                setOpen(false);
+                openFindings();
+              }}
+              className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-[12px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink cursor-pointer"
+            >
+              <Sparkles size={12} className="text-accent" />
+              What we found in your statement
+            </button>
 
             <Link
               href="/today"

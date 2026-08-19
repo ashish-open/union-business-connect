@@ -30,7 +30,12 @@ const HEADLINE_MAX = 6;
 const SUB_MAX = 7;
 
 /** "we", "our", "us" — the product talking about itself instead of their money. */
-const FIRST_PERSON = /\b(we|we'?re|we'?ll|our|ours|us)\b/i;
+// The apostrophes are NOT optional. `we'?re` matches the ordinary word "were"
+// and `we'?ll` matches "well", so this check was firing on any sentence
+// containing either — it only looked clean because the files whose copy says
+// "were" happened to be exempt. Both curly and straight quotes, since prose in
+// this repo uses both.
+const FIRST_PERSON = /\b(we|we['\u2019](re|ll|ve)|our|ours|us)\b/i;
 
 let fail = 0;
 const bad = (what: string, detail: string) => {
@@ -183,6 +188,14 @@ for (const e of ents) {
  */
 const EXEMPT: Array<{ match: RegExp; why: string }> = [
   { match: /^src\/app\/signin\//, why: "consent disclosure — legal text, read once, before agreeing" },
+  {
+    // The consent moved out of sign-in and into the first-run card over the
+    // workspace; the exemption follows the copy, because the reason for it —
+    // read once, at the moment of agreeing — is a property of the words, not of
+    // the route they happen to live on.
+    match: /FirstRunDialog\.tsx$/,
+    why: "the same consent disclosure, plus first-run copy read once and never again",
+  },
   { match: /^src\/app\/(try|apply)\//, why: "pre-customer flows — the pitch is the product here" },
   { match: /^src\/app\/bank\//, why: "internal bank console, not an SME screen — different reader, different register" },
   { match: /^src\/app\/design\//, why: "the design-system reference page documents itself" },

@@ -4,11 +4,19 @@
 // "Unexplained" is the number the page exists to drive to zero. Connecting a
 // channel is a state change you can watch: lump sums become matched
 // settlements, and the short ones carry order-level evidence into a dispute.
+//
+// Reads its query string with `useQueryString`, NOT `useSearchParams`. That is
+// not a style preference — `useSearchParams` turns everything up to the nearest
+// Suspense boundary into a client-side-rendering bailout, and on this route the
+// browser never picked the bailout up: the HTML shipped with a pending boundary
+// and no content, so opening /statement directly or refreshing on it showed an
+// empty shell forever. The hook explains the rest.
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDismissable } from "@/lib/useDismissable";
+import { useQueryString } from "@/lib/useQueryString";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
@@ -55,21 +63,7 @@ import { brand } from "@/config/brand";
 
 type Filter = "all" | "in" | "out" | "issues";
 
-/*
- * `useSearchParams` makes everything up to the nearest Suspense boundary
- * client-rendered, so per the Next docs the reader goes inside one. The fallback
- * is the app shell — the same frame the rest of the product paints on the first
- * frame, so nothing flashes empty while this resolves.
- */
 export default function StatementPage() {
-  return (
-    <Suspense fallback={<AppShell />}>
-      <StatementView />
-    </Suspense>
-  );
-}
-
-function StatementView() {
   const router = useRouter();
   const entity = useEntity();
   const channelsConnected = useStore((s) => s.channelsConnected);
@@ -106,7 +100,8 @@ function StatementView() {
      only seed initial state, but it is read before a client-side push has
      updated the URL — so arriving here from the Ask panel produced no answer at
      all, while typing the same URL into the address bar worked. */
-  const searchParams = useSearchParams();
+  const search = useQueryString();
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const askText = searchParams.get("ask") ?? "";
   // `?q=` lands in the table's own search box, not in the Ask bar. Those three
   // screens link here to say "see Sharma's lines" — that is a narrowing, and

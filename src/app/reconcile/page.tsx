@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
+import { resolveCounterparty } from "@/lib/analysis";
 import { ACCOUNTS } from "@/lib/coa";
 import { docTotals } from "@/lib/docs";
 import { Txn } from "@/data/seed";
@@ -100,6 +101,15 @@ export default function ReconcilePage() {
               const txn = txnById.get(m.txnId);
               const doc = books.docs.find((d) => d.number === m.docNumber);
               if (!txn || !doc) return null;
+              /* Who the money actually came from, when that is not who the
+                 document is addressed to.
+                 The row leads with the document's party and the reason can read
+                 "different name" — so it was asking "does this settle INV-0039?"
+                 while withholding the only fact that answers it. A proprietor
+                 settling his company's bill from a personal account is the
+                 commonest case there is, and the name is how you recognise it. */
+              const payer = resolveCounterparty(txn.narration).name;
+              const under = payer && payer !== doc.party ? ` — ${payer}` : "";
               return (
                 <div
                   key={`${m.txnId}-${m.docNumber}`}
@@ -113,7 +123,7 @@ export default function ReconcilePage() {
                       <Badge tone="info">{Math.round(m.confidence * 100)}% match</Badge>
                     </span>
                     <span className="mt-0.5 block truncate text-[11.5px] text-ink-3 tnum">
-                      {`${fmtDate(txn.date)} · ${m.reason} · ${doc.number} is ${formatINR(docTotals(doc).outstanding)} open`}
+                      {`${fmtDate(txn.date)} · ${m.reason}${under} · ${doc.number} is ${formatINR(docTotals(doc).outstanding)} open`}
                     </span>
                   </span>
                   <Money value={txn.amount} size="sm" className="shrink-0" />

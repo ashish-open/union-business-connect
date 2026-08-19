@@ -44,12 +44,15 @@ export function SweepInOffer({
   if (dismissed) return null;
 
   const where = offer.sources.map((s) => `${s.bank} ${maskAccount(s.masked)}`).join(" and ");
+  // The headline said "another bank" while the body could already name two of
+  // them. `sources` is per ACCOUNT, so count the banks, not the accounts.
+  const banks = new Set(offer.sources.map((s) => s.bank)).size;
 
   return (
     <>
       <div className="mt-5">
         <NudgeCard
-          fact={`${formatINR(offer.idle, { compact: true })} is idle at another bank`}
+          fact={`${formatINR(offer.idle, { compact: true })} is idle at ${banks > 1 ? "other banks" : "another bank"}`}
           body={`It's in ${where}. One mandate pulls it into ${offer.destination.bank} ${maskAccount(offer.destination.masked)} — on tap, or below a floor you set.`}
           action="Set up a pull mandate"
           onAction={() => setOpen(true)}

@@ -15,7 +15,29 @@ import type { ConnectMethod } from "@/lib/channels";
 interface SessionState {
   mobile: string | null;
   entityId: string | null;
-  onboarded: boolean; // consent given + analysis seen
+  onboarded: boolean; // signed in and past the picker — the app is reachable
+  /**
+   * entityId → this business has allowed us to read its statements.
+   *
+   * Consent used to be a sign-in step. It is now the first card over the
+   * workspace and it is the ONE card with no way out: `giveConsent` is the only
+   * thing that clears it, so no part of the app is usable before the permission
+   * exists. Keyed per entity, because consent is given by a business, not by the
+   * person holding the phone — one owner can run two.
+   */
+  consented: Record<string, true>;
+  /**
+   * entityId → the first-run findings have been shown and closed.
+   *
+   * The findings used to be the last step of sign-in, which spent the one
+   * moment the product has to prove itself on a screen the owner had to leave
+   * before they could touch anything. They now arrive over the workspace, so
+   * the app is already behind them and closing the card leaves them somewhere
+   * rather than nowhere. This flag is what stops it opening twice.
+   */
+  findingsSeen: Record<string, true>;
+  /** Reopened from the bell — the findings are a recap, not a one-time gate. */
+  findingsOpen: boolean;
   resolved: Record<string, true>; // Today-queue items acted on, keyed entityId/itemId
   channelsConnected: Record<string, true>; // entityId → marketplace channels linked
   lineResolutions: Record<string, "accepted" | "rejected">; // entityId/txnId
@@ -81,6 +103,10 @@ interface SessionState {
   signIn: (mobile: string) => void;
   selectEntity: (entityId: string) => void;
   finishOnboarding: () => void;
+  giveConsent: (entityId: string) => void;
+  openFindings: () => void;
+  /** Closing marks them seen: dismissing is an answer, not a postponement. */
+  closeFindings: (entityId: string) => void;
   resolveItem: (entityId: string, itemId: string) => void;
   connectChannels: (entityId: string) => void;
   resolveLine: (entityId: string, txnId: string, res: "accepted" | "rejected") => void;
@@ -191,6 +217,9 @@ export interface CAApplication {
 const BLANK_SESSION = {
   entityId: null,
   onboarded: false,
+  consented: {},
+  findingsSeen: {},
+  findingsOpen: false,
   resolved: {},
   channelsConnected: {},
   lineResolutions: {},
@@ -232,6 +261,9 @@ export const useStore = create<SessionState>()(
       mobile: null,
       entityId: null,
       onboarded: false,
+      consented: {},
+      findingsSeen: {},
+      findingsOpen: false,
       resolved: {},
       channelsConnected: {},
       lineResolutions: {},
@@ -265,6 +297,14 @@ export const useStore = create<SessionState>()(
         }),
       selectEntity: (entityId) => set({ entityId }),
       finishOnboarding: () => set({ onboarded: true }),
+      giveConsent: (entityId) =>
+        set((s) => ({ consented: { ...s.consented, [entityId]: true as const } })),
+      openFindings: () => set({ findingsOpen: true }),
+      closeFindings: (entityId) =>
+        set((s) => ({
+          findingsOpen: false,
+          findingsSeen: { ...s.findingsSeen, [entityId]: true as const },
+        })),
       resolveItem: (entityId, itemId) =>
         set((s) => ({ resolved: { ...s.resolved, [`${entityId}/${itemId}`]: true as const } })),
       connectChannels: (entityId) =>

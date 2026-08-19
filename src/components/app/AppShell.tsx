@@ -51,6 +51,7 @@ import { BrandMark } from "./BrandMark";
 import { AskAnywhere } from "./AskAnywhere";
 import { ThemeChoice } from "./ThemeChoice";
 import { NeedsYouBell } from "./NeedsYouBell";
+import { FirstRunDialog } from "./FirstRunDialog";
 import { useDismissable } from "@/lib/useDismissable";
 import { useHydrated } from "@/lib/useHydrated";
 
@@ -403,6 +404,12 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
       </div>
 
       <AskAnywhere entity={entity} open={askOpen} onOpenChange={setAskOpen} />
+
+      {/* Consent, the analysis, then the findings — the whole first run, over
+          the loaded app. Mounted on the frame rather than on Today so the
+          consent gate cannot be walked around by typing a URL, and so the
+          findings recap can be reopened from the bell on any screen. */}
+      <FirstRunDialog key={entity.id} entity={entity} firstName={customer.firstName} />
 
       {/* mobile bottom nav — four destinations plus everything else, rather
           than nine squeezed to the point where none of them is tappable */}

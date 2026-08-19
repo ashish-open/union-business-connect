@@ -434,7 +434,18 @@ export function analyse(entity: Entity, connected = false): Analysis {
 
   return {
     txnCount: txns.length,
-    daysCovered: txns.length ? daysBetween(txns[txns.length - 1].date, ANCHOR_DATE) : 0,
+    /* From the OLDEST line, found by value.
+       This read `txns[txns.length - 1].date`, which assumes every seed's
+       transactions are sorted newest-last. They are not: Nadi's array ends
+       oldest and Chitra's ends today, so the same expression reported "89 days"
+       for one business and "last 0 days" for the other — on the sentence whose
+       entire job is to say how much statement we read. */
+    daysCovered: txns.length
+      ? daysBetween(
+          txns.reduce((oldest, t) => (t.date < oldest ? t.date : oldest), txns[0].date),
+          ANCHOR_DATE,
+        )
+      : 0,
     accountCount: entity.accounts.length,
     resolvedPct: txns.length ? Math.round((resolved / txns.length) * 100) : 0,
     findings: top,

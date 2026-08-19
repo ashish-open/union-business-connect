@@ -81,6 +81,21 @@ const KAAYA: Item[] = [
   { id: "box-mailer", name: "Mailer carton (small)", unit: "pc", hsn: "4819", gstPct: 18, rate: 0, cost: 11, openingQty: 6800, reorder: 3000 },
 ];
 
+// Chitra fits out homes rather than building furniture from scratch: soft
+// furnishings, shutters and fittings bought in, plus the design work itself.
+// Deliberately NOT a copy of Rajesh's master — two interiors firms in one demo
+// stocking the identical seven lines reads as a placeholder, and the point of
+// per-persona masters is that the catalogue tells you what the business does.
+const CHITRA: Item[] = [
+  { id: "fab-curtain", name: "Curtain fabric (blackout)", unit: "m", hsn: "6303", gstPct: 12, rate: 720, cost: 430, openingQty: 480, reorder: 150 },
+  { id: "uph-foam", name: "Upholstery foam 40D", unit: "sheet", hsn: "3921", gstPct: 18, rate: 2900, cost: 1980, openingQty: 62, reorder: 25 },
+  { id: "mod-shutter", name: "Modular shutter (acrylic)", unit: "pc", hsn: "9403", gstPct: 18, rate: 4100, cost: 2850, openingQty: 96, reorder: 30 },
+  { id: "hw-slide", name: "Soft-close drawer slide", unit: "pair", hsn: "8302", gstPct: 18, rate: 860, cost: 545, openingQty: 210, reorder: 80 },
+  { id: "wall-panel", name: "Wall panel (WPC)", unit: "sq.ft", hsn: "3925", gstPct: 18, rate: 195, cost: 128, openingQty: 1450, reorder: 500 },
+  { id: "adh-pu", name: "PU adhesive 5kg", unit: "can", hsn: "3506", gstPct: 18, rate: 1850, cost: 1320, openingQty: 18, reorder: 24 },
+  { id: "svc-site", name: "Design & site supervision", unit: "job", hsn: "9954", gstPct: 18, rate: 38000, cost: 0, openingQty: 0, reorder: 0, service: true },
+];
+
 /** Entity id → its item master. Ids match `seed.ts`. */
 export const ITEMS: Record<string, Item[]> = {
   "rajesh-interiors": RAJESH,
@@ -89,6 +104,7 @@ export const ITEMS: Record<string, Item[]> = {
   "vistara-projects": VISTARA,
   "arka-kitchen": ARKA,
   "kaaya-naturals": KAAYA,
+  "chitra-interiors": CHITRA,
 };
 
 export function itemsFor(entityId: string): Item[] {

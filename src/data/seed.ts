@@ -801,9 +801,27 @@ export const BANK_CUSTOMERS: BankCustomer[] = [
         city: "Bengaluru",
         gstin: "29AAFCN2201Q1Z5",
         secondUser: "Priya (accountant)",
+        /*
+         * A multi-outlet QSR banks the way it operates: collections per outlet,
+         * payroll ring-fenced, and whatever legacy accounts the landlords and
+         * old auditors left behind, linked view-only.
+         *
+         * Every account we can MOVE money from is a Union Bank account, and
+         * that is not a seeding accident — the product runs on the bank's own
+         * rails, so an account at another bank can only ever be watched
+         * (`readOnly`). Marking an outside account transactable would have the
+         * app offer a payment it cannot make.
+         *
+         * Labels are distinct on purpose: `Avatar` takes its initials from the
+         * label and `/balance` lists them together, so two accounts at one bank
+         * that share a label render as the same row twice.
+         */
         accounts: [
           { bank: "Union Bank of India", masked: "••4821", label: "Current account", balance: 684510 },
+          { bank: "Union Bank of India", masked: "••5310", label: "Outlet collections", balance: 286400 },
+          { bank: "Union Bank of India", masked: "••6142", label: "Payroll account", balance: 194300 },
           { bank: "ICICI Bank", masked: "••2210", label: "Current account", balance: 112040, readOnly: true },
+          { bank: "HDFC Bank", masked: "••7745", label: "Current account", balance: 342700, readOnly: true },
         ],
         txns: nadiFoodsTxns(),
         externalTxns: nadiFoodsExternal(),
@@ -990,8 +1008,16 @@ function voiceDemoTxns(): Txn[] {
   let n = 0;
   const id = () => `vd${++n}`;
 
-  // A plain rhythm: customers paying in, a supplier and payroll going out. No
-  // marketplace settlements, so nothing here needs a channel report to explain.
+  // A plain rhythm: customers paying in, a supplier and payroll going out,
+  // and three COLLECTION rails.
+  //
+  // Not Swiggy or Zomato — an interiors proprietor does not sell food, and a
+  // "₹29L from Swiggy and Zomato" finding on a furniture business would break
+  // the one promise the first-run card makes, which is that we read the actual
+  // statement. What an interiors firm does have is a card machine in the
+  // showroom, a QR on the counter, and payment links for design advances. Those
+  // are the same mechanic — money arriving net of a fee only the platform's own
+  // report can show — on rails that fit the business.
   eachDay((d, i) => {
     const wd = weekday(d);
     const dom = Number(d.slice(8, 10));
@@ -1040,6 +1066,79 @@ function voiceDemoTxns(): Txn[] {
         ref: `NCH${800000 + i}`,
       });
     }
+
+    // Payment links for design advances. Settles T+1 net of MDR, and the gross
+    // it was taken from lives only in their dashboard.
+    if (wd === 1) {
+      out.push({
+        id: id(),
+        date: d,
+        amount: 32400 + ((i * 890) % 14000),
+        direction: "credit",
+        narration: `NEFT CR-RAZORPAY SOFTWARE PVT LTD-PAYOUT ${9000 + i}`,
+        mode: "NEFT",
+        ref: `RZP${300000 + i}`,
+      });
+    }
+    // The showroom card machine.
+    if (wd === 6) {
+      out.push({
+        id: id(),
+        date: d,
+        amount: 21600 + ((i * 530) % 9000),
+        direction: "credit",
+        narration: `NEFT CR-PINE LABS PVT LTD-POS SETTLEMENT ${4000 + i}`,
+        mode: "NEFT",
+        ref: `PIN${500000 + i}`,
+      });
+    }
+    // The QR at the counter. UPI carries no MDR by law, so the whole
+    // collection has to arrive — which is what makes any shortfall here a
+    // finding without needing anyone's portal.
+    if (wd === 0) {
+      out.push({
+        id: id(),
+        date: d,
+        amount: 4300 + ((i * 210) % 3800),
+        direction: "credit",
+        narration: `UPI/BHARATPE MERCHANT SETTLEMENT/${7000 + i}`,
+        mode: "UPI",
+        ref: `BPE${700000 + i}`,
+      });
+    }
+  });
+
+  /*
+   * Two credits that the engine can see but cannot decide, so a person has to.
+   *
+   * This is what Reconcile is for, and her statement had nothing in it: every
+   * line was either matched outright or needed no matching, so the screen was
+   * permanently empty. Neither of these is a defect in her books — no line is
+   * unnamed and nothing sits in Suspense — they are the honest middle case:
+   * money arrived, and which document it settles is a judgement.
+   *
+   *   · a part payment  — same customer, 47% of an open invoice (confidence .7)
+   *   · a payment under another name — the client's proprietor settling his
+   *     company's bill from a personal account, for the invoice total to the
+   *     rupee (confidence .5). Extremely common here, and unmatchable by name.
+   */
+  out.push({
+    id: id(),
+    date: addDays(ANCHOR_DATE, -6),
+    amount: 45000,
+    direction: "credit",
+    narration: "NEFT/KAMALTEX/PART PAYMENT 40",
+    mode: "NEFT",
+    ref: "AXI299001",
+  });
+  out.push({
+    id: id(),
+    date: addDays(ANCHOR_DATE, -3),
+    amount: 47200,
+    direction: "credit",
+    narration: "IMPS/PRAKASH SHETTY/SETTLEMENT",
+    mode: "IMPS",
+    ref: "IMP299002",
   });
 
   return out;
@@ -1062,12 +1161,39 @@ export const VOICE_DEMO_CUSTOMER: BankCustomer = {
       constitution: "Proprietorship",
       city: "Bengaluru",
       gstin: "29AASPC4417K1ZP",
+      /*
+         A proprietor's spread: the business current account, personal savings at
+         the same branch (same person in law, so it is hers to draw on), a
+         separate account the client advances land in, and one legacy account at
+         another bank that can only be watched.
+
+         Kept to banks already in `BANK_CODE` — an unlisted bank falls through to
+         a "BANK…" IFSC, which the account detail panel prints in clear. */
       accounts: [
         {
           bank: "Union Bank of India",
           masked: "••4421",
           label: "Current account",
           balance: 742380,
+        },
+        {
+          bank: "Union Bank of India",
+          masked: "••7719",
+          label: "Savings account",
+          balance: 318650,
+        },
+        {
+          bank: "Union Bank of India",
+          masked: "••5088",
+          label: "Advance collections",
+          balance: 142800,
+        },
+        {
+          bank: "Axis Bank",
+          masked: "••8264",
+          label: "Current account",
+          balance: 196500,
+          readOnly: true,
         },
       ],
       txns: voiceDemoTxns(),

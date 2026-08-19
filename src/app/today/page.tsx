@@ -15,6 +15,7 @@ import {
   Landmark,
   ListChecks,
   Plug,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Badge } from "@/components/ui/Badge";
@@ -94,9 +95,42 @@ export default function TodayPage() {
   // nav item. NeedsYouBell reads the same buildQueue, so the count in the shell
   // and the list here still cannot disagree.
   const voice = useVoiceDrafts(entity?.id);
+  /*
+   * Requests this browser has just finished, by queue id.
+   *
+   * The list itself only refreshes on the 20s poll, so approving something
+   * would leave the "N open" count stale for up to twenty seconds — on the very
+   * screen that just told you it acted. The row reports upward the moment the
+   * execute returns; the poll catches up later.
+   */
+  const [justDone, setJustDone] = useState<Record<string, true>>({});
+
+  /*
+   * What still needs a person, plus whatever this session just did.
+   *
+   * The filter used to be `state !== "rejected"`, which reads as "hide what was
+   * cancelled" and means "show every request this business has ever made". That
+   * is invisible in dev, where the draft store is a Map in one process and
+   * starts empty — but in production the drafts live in Upstash and are never
+   * deleted, so a queue built that way only ever grows. It is why Today showed
+   * eight rows, six of them finished weeks ago with no way to clear them, while
+   * the bell — which has always counted `collecting`/`ready` only — said three.
+   *
+   * `justDone` is the deliberate exception: an executed draft stays on screen
+   * for the session that executed it, so the green "it's in Sales" line is
+   * still the reward for approving it. Next session it is simply history, and
+   * history belongs in Sales, not in a list called Needs you.
+   */
   const voiceItems = useMemo(
-    () => voice.drafts.filter((d) => d.state !== "rejected").map(draftToQueueItem),
-    [voice.drafts],
+    () =>
+      voice.drafts
+        .filter(
+          (d) =>
+            d.state === "collecting" || d.state === "ready" || justDone[`voice-${d.ref}`],
+        )
+        .map(draftToQueueItem)
+        .filter((i) => !entity || !resolved[`${entity.id}/${i.id}`]),
+    [voice.drafts, resolved, entity, justDone],
   );
 
   const queue = useMemo(
@@ -125,7 +159,11 @@ export default function TodayPage() {
 
   if (!entity) return <AppShell />;
 
-  const isDone = (item: QueueItem) => !!resolved[`${entity.id}/${item.id}`];
+  /* A request executed this session is done even though nobody pressed its
+     action here — otherwise the count treats the thing it just created as
+     still waiting on you. */
+  const isDone = (item: QueueItem) =>
+    !!resolved[`${entity.id}/${item.id}`] || !!justDone[item.id];
   const openCount = queue.filter((i) => !isDone(i)).length;
   const total = entity.accounts.reduce((s, a) => s + a.balance, 0);
   const pay = payable(entity);
@@ -255,6 +293,8 @@ export default function TodayPage() {
                 onResolve={() =>
                   item.href ? router.push(item.href) : resolveItem(entity.id, item.id)
                 }
+                onDismiss={() => resolveItem(entity.id, item.id)}
+                onExecuted={() => setJustDone((d) => ({ ...d, [item.id]: true }))}
               />
             ))}
           </Card>
@@ -449,18 +489,32 @@ function QueueRow({
   onResolve,
   draft,
   entityId,
+  onDismiss,
+  onExecuted,
 }: {
   item: QueueItem;
   done: boolean;
   onResolve: () => void;
   draft?: Draft;
   entityId?: string;
+  /** Voice rows only: take this request off the list. */
+  onDismiss?: () => void;
+  /** Voice rows only: it became a record, so stop counting it as open. */
+  onExecuted?: () => void;
 }) {
   // Voice rows expand in place rather than navigating. The fields have to be
   // editable before anything is created, and losing your position in the queue to
   // read four fields is a bad trade.
   if (draft && entityId) {
-    return <VoiceRow item={item} draft={draft} entityId={entityId} />;
+    return (
+      <VoiceRow
+        item={item}
+        draft={draft}
+        entityId={entityId}
+        onDismiss={onDismiss ?? (() => {})}
+        onExecuted={onExecuted ?? (() => {})}
+      />
+    );
   }
   return (
     <div
@@ -520,10 +574,14 @@ function VoiceRow({
   item,
   draft,
   entityId,
+  onDismiss,
+  onExecuted,
 }: {
   item: QueueItem;
   draft: Draft;
   entityId: string;
+  onDismiss: () => void;
+  onExecuted: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -548,6 +606,8 @@ function VoiceRow({
     [draft.ref],
   );
 
+  const isExecuted = local.state === "executed";
+
   const onExecute = async () => {
     setBusy(true);
     try {
@@ -568,12 +628,25 @@ function VoiceRow({
         addPayee(entityId, payee);
         setLocal((d) => ({ ...d, executedAs: payee.name }));
       }
+      onExecuted();
     } finally {
       setBusy(false);
     }
   };
 
-  const isExecuted = local.state === "executed";
+  /*
+   * Cancel, and it means two different things.
+   *
+   * Executed: the request is finished and its record is in Sales — clearing the
+   * row throws nothing away, so it goes quietly.
+   * Still pending: this is a real cancellation, so the draft is rejected on the
+   * server too. Dismissing it locally alone would bring it back on the next
+   * 20-second poll, which is worse than having no button at all.
+   */
+  const dismiss = async () => {
+    if (!isExecuted) await call({ op: "reject" });
+    onDismiss();
+  };
 
   return (
     <div
@@ -610,13 +683,26 @@ function VoiceRow({
             />
           )}
         </div>
-        {!isExecuted && (
-          <span className="shrink-0">
+        <span className="flex shrink-0 items-center gap-1.5">
+          {!isExecuted && (
             <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
               {open ? "Close" : "Review"}
             </Button>
-          </span>
-        )}
+          )}
+          {/* On the row, not only inside the expanded panel. A finished request
+              had no control at all and simply accumulated; a pending one hid
+              its Discard behind Review, so cancelling something you never
+              wanted meant first opening it. */}
+          <button
+            onClick={() => void dismiss()}
+            disabled={busy}
+            aria-label={isExecuted ? "Dismiss this request" : "Cancel this request"}
+            title={isExecuted ? "Dismiss" : "Cancel this request"}
+            className="rounded-md p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40 cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </span>
       </div>
     </div>
   );
