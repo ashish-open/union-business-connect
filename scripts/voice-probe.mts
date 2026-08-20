@@ -692,4 +692,173 @@ check("every advertised tool has a route behind it", () => {
   assert.deepEqual(unbuilt, [], `handed to the agent but not built: ${unbuilt.join(", ")}`);
 });
 
+/*
+ * ---------------------------------------------------------------------------
+ * Per-account balance.
+ *
+ * The demo entity is the shape that breaks naive matching: three Union Bank
+ * accounts and one Axis account, and TWO of them are labelled "Current
+ * account". Every check below exists because getting it wrong means speaking a
+ * confidently wrong balance down a phone line.
+ * ---------------------------------------------------------------------------
+ */
+const { balance: readBalance, entityById: readEntity } = await import("@/lib/voice/reads");
+
+const chitra = readEntity("chitra-interiors")!;
+const TOTAL = 1_400_330;
+const TRANSACTABLE = 1_203_830;
+
+check("the demo entity is still the four-account shape these checks assume", () => {
+  assert.equal(chitra.accounts.length, 4);
+  assert.equal(chitra.accounts.filter((a) => a.readOnly).length, 1);
+  assert.equal(
+    chitra.accounts.reduce((s, a) => s + a.balance, 0),
+    TOTAL,
+  );
+  // The collision the matcher has to survive.
+  assert.equal(chitra.accounts.filter((a) => /current/i.test(a.label)).length, 2);
+});
+
+check("no argument answers the combined figure, unchanged", () => {
+  const a = readBalance(chitra);
+  assert.equal(
+    a.speak,
+    "You have 14 lakh rupees across 4 accounts. 1 lakh 97 thousand rupees of that sits in 1 linked account we can see but not transact on.",
+  );
+  // The split must not ride along on the default answer — the combined reply is
+  // combined, or "combined by default" is not a property this has.
+  assert.equal("breakdown" in a.data, false);
+});
+
+check("absent, empty and unresolved-template arguments are all the same thing", () => {
+  const want = readBalance(chitra).speak;
+  for (const arg of ["", "   ", "{{account}}", "{{ account }}", "balance", "how much money"]) {
+    assert.equal(readBalance(chitra, arg).speak, want, `"${arg}" should give the combined figure`);
+  }
+});
+
+check("asking for the split names all four, largest first, with the total leading", () => {
+  const a = readBalance(chitra, "all accounts");
+  assert.equal(
+    a.speak,
+    "Across 4 accounts, 14 lakh rupees. " +
+      "Union Bank current account ending 4 4 2 1, 7 lakh 42 thousand rupees. " +
+      "Union Bank savings account ending 7 7 1 9, 3 lakh 19 thousand rupees. " +
+      "Axis Bank current account ending 8 2 6 4, 1 lakh 97 thousand rupees, view only. " +
+      "Union Bank advance collections ending 5 0 8 8, 1 lakh 43 thousand rupees.",
+  );
+  const breakdown = a.data.breakdown as Array<{ balance: number; view_only: boolean }>;
+  assert.equal(breakdown.length, 4);
+  assert.equal(
+    breakdown.reduce((s, b) => s + b.balance, 0),
+    TOTAL,
+    "the four parts must add to the total the same call speaks",
+  );
+  assert.equal(breakdown.filter((b) => b.view_only).length, 1);
+});
+
+check("every phrasing of 'each' reaches the split", () => {
+  for (const arg of ["each", "every account", "break it down", "the breakdown", "split it up",
+                     "individually", "separately", "itemise them", "each of them"]) {
+    assert.ok(
+      readBalance(chitra, arg).data.breakdown,
+      `"${arg}" should itemise`,
+    );
+  }
+});
+
+check("one named account answers only that account", () => {
+  assert.equal(
+    readBalance(chitra, "savings").speak,
+    "Your Union Bank savings account ending 7 7 1 9 holds 3 lakh 19 thousand rupees.",
+  );
+  assert.equal(readBalance(chitra, "my savings account").data.account_balance, 318_650);
+  assert.equal(readBalance(chitra, "advance collections").data.account_balance, 142_800);
+  assert.equal(readBalance(chitra, "the advance one").data.account_balance, 142_800);
+});
+
+check("a view-only account says so, in the same breath as its figure", () => {
+  const a = readBalance(chitra, "axis");
+  assert.equal(
+    a.speak,
+    "Your Axis Bank current account ending 8 2 6 4 holds 1 lakh 97 thousand rupees. " +
+      "That one is linked for viewing only — I can see it but not move money from it.",
+  );
+  assert.equal(a.data.account_view_only, true);
+  // Said as one sentence pair, not left for the caller to infer from silence.
+  assert.equal(readBalance(chitra, "axis bank").speak, a.speak);
+});
+
+check("digits win over words, and last-four is enough", () => {
+  assert.equal(readBalance(chitra, "4421").data.account_balance, 742_380);
+  assert.equal(readBalance(chitra, "ending 8264").data.account_balance, 196_500);
+  assert.equal(readBalance(chitra, "account 7719").data.account_balance, 318_650);
+  // A caller reciting a full number still lands on their own account.
+  assert.equal(readBalance(chitra, "0123456 5088").data.account_balance, 142_800);
+});
+
+check("'current account' is ambiguous here and is answered with a question", () => {
+  const a = readBalance(chitra, "my current account");
+  assert.equal(
+    a.speak,
+    "You have 2 accounts that could be — Union Bank current account ending 4 4 2 1 " +
+      "and Axis Bank current account ending 8 2 6 4. Which one?",
+  );
+  assert.deepEqual(a.data.ambiguous, [
+    "Union Bank current account ending 4 4 2 1",
+    "Axis Bank current account ending 8 2 6 4",
+  ]);
+  // Never a figure for an account we have not identified, and never a guess.
+  assert.equal(a.data.account_balance, undefined);
+  assert.equal(/lakh|thousand|rupees/.test(a.speak), false);
+});
+
+check("naming the bank alone is ambiguous across its three accounts", () => {
+  const a = readBalance(chitra, "union bank");
+  assert.equal((a.data.ambiguous as string[]).length, 3);
+  assert.equal(a.data.account_balance, undefined);
+  // ...but bank plus kind resolves it.
+  assert.equal(readBalance(chitra, "union bank savings").data.account_balance, 318_650);
+  assert.equal(readBalance(chitra, "axis current account").data.account_balance, 196_500);
+});
+
+check("an account they do not hold is refused, not approximated", () => {
+  for (const arg of ["hdfc", "my icici account", "9999", "fixed deposit"]) {
+    const a = readBalance(chitra, arg);
+    assert.equal(a.data.found, false, `"${arg}" should not resolve`);
+    assert.equal(a.data.account_balance, undefined);
+    assert.equal(/lakh|thousand|rupees/.test(a.speak), false, `"${arg}" leaked a figure`);
+  }
+  assert.equal((readBalance(chitra, "hdfc").data.known as string[]).length, 4);
+});
+
+check("data.balance means the total on every branch, whatever was asked", () => {
+  // A payload where `balance` is the total on one call and one account's holding
+  // on the next is a trap for whoever wires the agent, and invisible from both
+  // ends. So it is pinned here rather than left to convention.
+  for (const arg of [undefined, "all", "axis", "savings", "current", "hdfc", "4421"]) {
+    const d = readBalance(chitra, arg).data;
+    assert.equal(d.balance, TOTAL, `balance drifted for "${arg}"`);
+    assert.equal(d.accounts, 4);
+    assert.equal(d.linked, 1);
+    assert.equal(d.transactable, TRANSACTABLE, `transactable drifted for "${arg}"`);
+    assert.ok(d.as_at, "every answer carries provenance");
+  }
+});
+
+check("no branch ever speaks a full account number", () => {
+  const full = chitra.accounts.map((a) => a.masked.replace(/\D/g, ""));
+  for (const arg of [undefined, "all", "axis", "savings", "current", "union bank", "hdfc", "4421"]) {
+    const said = readBalance(chitra, arg).speak;
+    // The default reply for a single-account business does say a bare tail, and
+    // that path is untouched; what must never appear is a run of digits long
+    // enough to be an account number.
+    assert.equal(/\d{5,}/.test(said), false, `long digit run in "${arg}": ${said}`);
+    for (const f of full) {
+      if (arg === undefined) continue;
+      assert.equal(said.includes(f), false, `spoke ${f} undelimited for "${arg}"`);
+    }
+  }
+});
+
 console.log(`\n${pass} passed${process.exitCode ? " — with failures above" : ""}\n`);
